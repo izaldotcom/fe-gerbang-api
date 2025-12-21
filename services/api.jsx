@@ -115,6 +115,9 @@ export const apiService = {
   // === USERS ===
   getUsers: () => fetchAPI("/users", { method: "GET" }),
 
+  // === USER PROFILE (Ambil data dari Redis via Backend) ===
+  getProfile: () => fetchAPI("/auth/me", { method: "GET" }),
+
   // === ORDERS ===
   createOrder: (payload) =>
     fetchAPI("/seller/order", {

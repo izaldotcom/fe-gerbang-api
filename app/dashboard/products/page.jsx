@@ -4,10 +4,15 @@ import Modal from "@/app/components/Modal";
 import { apiService } from "@/services/api";
 
 export default function ProductsPage() {
-  // State Data
+  // State Data Utama
   const [products, setProducts] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
+  const [recipes, setRecipes] = useState([]);
+  const [supplierProducts, setSupplierProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // State Role User
+  const [userRole, setUserRole] = useState(null);
 
   // State Filter (ID Supplier Terpilih)
   const [selectedSupplierId, setSelectedSupplierId] = useState("");
@@ -60,18 +65,33 @@ export default function ProductsPage() {
     return colors[index];
   };
 
-  // === 1. FETCH DATA ===
+  // === 1. FETCH DATA (Termasuk Profile User) ===
   const fetchData = async () => {
     try {
       setIsLoading(true);
-      // Kita hanya butuh Products dan Suppliers sekarang (Recipes tidak perlu untuk filtering dasar jika supplier_id ada di produk)
-      const [productsRes, suppliersRes] = await Promise.all([
+      const [
+        productsRes,
+        suppliersRes,
+        recipesRes,
+        supplierProdRes,
+        profileRes,
+      ] = await Promise.all([
         apiService.getProducts(),
         apiService.getSuppliers(),
+        apiService.getRecipes(),
+        apiService.getSupplierProducts(),
+        apiService.getProfile(), // Ambil data user login
       ]);
 
       setProducts(productsRes.data || []);
       setSuppliers(suppliersRes.data || []);
+      setRecipes(recipesRes.data || []);
+      setSupplierProducts(supplierProdRes.data || []);
+
+      // Set Role User
+      if (profileRes.data) {
+        setUserRole(profileRes.data.role_name);
+      }
     } catch (err) {
       console.error("Gagal ambil data:", err.message);
     } finally {
@@ -83,17 +103,27 @@ export default function ProductsPage() {
     fetchData();
   }, []);
 
+  // === CHECK ROLE (Apakah Admin?) ===
+  const isAdmin = userRole === "Admin";
+
   // === 2. FILTER LOGIC ===
-  // Filter Produk langsung berdasarkan supplier_id yang ada di data produk
   const filteredProducts = selectedSupplierId
-    ? products.filter((product) => product.supplier_id === selectedSupplierId)
-    : [];
+    ? products.filter((product) => {
+        const recipeGroup = recipes.find((r) => r.product_id === product.id);
+        if (!recipeGroup || !recipeGroup.items) return false;
+        return recipeGroup.items.some((item) => {
+          const sp = supplierProducts.find(
+            (s) => s.id === item.supplier_product_id
+          );
+          return sp && sp.supplier_id === selectedSupplierId;
+        });
+      })
+    : []; // Default kosong sebelum pilih supplier
 
   // === 3. SUBMIT HANDLER ===
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      // Base payload
       const payload = {
         name: formData.name,
         denom: Number(formData.denom),
@@ -103,13 +133,11 @@ export default function ProductsPage() {
       };
 
       if (isEditing) {
-        // Update: PUT /product?id=... (Payload tanpa supplier_id biasanya, atau sesuai kebutuhan)
         await apiService.updateProduct(currentId, payload);
       } else {
-        // Create: POST /product (Wajib ada supplier_id)
         const createPayload = {
           ...payload,
-          supplier_id: selectedSupplierId, // Ambil dari filter yang sedang aktif
+          supplier_id: selectedSupplierId,
         };
         await apiService.createProduct(createPayload);
       }
@@ -159,7 +187,9 @@ export default function ProductsPage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-800">Products</h1>
         <p className="text-gray-500 mt-1">
-          Pilih supplier di bawah untuk mengelola produk terkait.
+          {isAdmin
+            ? "Kelola data produk utama (Koin Emas)."
+            : "Lihat daftar produk yang tersedia."}
         </p>
       </div>
 
@@ -258,8 +288,8 @@ export default function ProductsPage() {
           )}
         </h2>
 
-        {/* Tombol Add (Hanya Muncul Jika Supplier Dipilih) */}
-        {selectedSupplierId && (
+        {/* Tombol Add: HANYA MUNCUL JIKA ADMIN & SUPPLIER DIPILIH */}
+        {isAdmin && selectedSupplierId && (
           <button
             onClick={handleOpenAdd}
             className="bg-blue-600 text-white px-6 py-2.5 rounded-lg shadow-lg hover:bg-blue-700 hover:shadow-blue-500/30 transition-all font-medium flex items-center gap-2"
@@ -290,37 +320,47 @@ export default function ProductsPage() {
                 <th className="p-5 text-sm font-semibold text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="p-5 text-sm font-semibold text-gray-500 uppercase tracking-wider text-right">
-                  Aksi
-                </th>
+
+                {/* Kolom Aksi HANYA MUNCUL JIKA ADMIN */}
+                {isAdmin && (
+                  <th className="p-5 text-sm font-semibold text-gray-500 uppercase tracking-wider text-right">
+                    Aksi
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {isLoading ? (
                 <tr>
-                  <td colSpan="6" className="p-8 text-center text-gray-500">
+                  <td
+                    colSpan={isAdmin ? 6 : 5}
+                    className="p-8 text-center text-gray-500"
+                  >
                     Memuat data produk...
                   </td>
                 </tr>
               ) : !selectedSupplierId ? (
-                /* STATE KOSONG JIKA BELUM PILIH SUPPLIER */
                 <tr>
-                  <td colSpan="6" className="p-16 text-center text-gray-400">
+                  <td
+                    colSpan={isAdmin ? 6 : 5}
+                    className="p-16 text-center text-gray-400"
+                  >
                     <div className="flex flex-col items-center gap-4">
                       <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center text-2xl">
                         👆
                       </div>
                       <p className="font-medium">
-                        Pilih salah satu supplier di atas untuk melihat dan
-                        mengelola produk.
+                        Pilih salah satu supplier di atas untuk melihat produk.
                       </p>
                     </div>
                   </td>
                 </tr>
               ) : filteredProducts.length === 0 ? (
-                /* STATE JIKA SUDAH PILIH TAPI DATA KOSONG */
                 <tr>
-                  <td colSpan="6" className="p-16 text-center text-gray-400">
+                  <td
+                    colSpan={isAdmin ? 6 : 5}
+                    className="p-16 text-center text-gray-400"
+                  >
                     Belum ada produk untuk supplier ini.
                   </td>
                 </tr>
@@ -353,20 +393,24 @@ export default function ProductsPage() {
                         {item.status ? "Active" : "Inactive"}
                       </span>
                     </td>
-                    <td className="p-5 text-right space-x-3 whitespace-nowrap">
-                      <button
-                        onClick={() => handleOpenEdit(item)}
-                        className="text-blue-600 hover:text-blue-800 font-medium text-sm transition-colors"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(item.id)}
-                        className="text-red-500 hover:text-red-700 font-medium text-sm transition-colors"
-                      >
-                        Hapus
-                      </button>
-                    </td>
+
+                    {/* Tombol Aksi HANYA MUNCUL JIKA ADMIN */}
+                    {isAdmin && (
+                      <td className="p-5 text-right space-x-3 whitespace-nowrap">
+                        <button
+                          onClick={() => handleOpenEdit(item)}
+                          className="text-blue-600 hover:text-blue-800 font-medium text-sm transition-colors"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(item.id)}
+                          className="text-red-500 hover:text-red-700 font-medium text-sm transition-colors"
+                        >
+                          Hapus
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))
               )}
@@ -375,7 +419,7 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      {/* Modal Form */}
+      {/* Modal Form (Hanya Admin yang bisa trigger ini) */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -460,7 +504,7 @@ export default function ProductsPage() {
             </select>
           </div>
 
-          {/* Note untuk User */}
+          {/* Note untuk Admin */}
           {!isEditing && (
             <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
               Produk akan ditambahkan ke supplier:{" "}
