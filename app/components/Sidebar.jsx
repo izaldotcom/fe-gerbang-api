@@ -23,7 +23,6 @@ export default function Sidebar() {
 
   // Definisi Menu
   const menus = [
-    { name: "Products", href: "/dashboard/products", icon: "📦" },
     {
       name: "Suppliers",
       icon: "🚚",
@@ -32,6 +31,8 @@ export default function Sidebar() {
         { name: "Supplier Product", href: "/dashboard/suppliers/products" },
       ],
     },
+    { name: "Products", href: "/dashboard/products", icon: "📦" },
+    { name: "Product Recipes", href: "/dashboard/recipes", icon: "📜" },
     { name: "Transaksi Baru", href: "/dashboard/transactions", icon: "🛒" },
     // { name: "Users", href: "/dashboard/users", icon: "👥" },
   ];
