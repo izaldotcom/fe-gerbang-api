@@ -39,7 +39,7 @@ export default function HomePage() {
                 Masuk
               </Link>
               <Link
-                href="/login"
+                href="/register"
                 className="px-5 py-2.5 rounded-full bg-blue-600 text-white text-sm font-bold shadow-lg shadow-blue-500/30 hover:bg-blue-700 hover:-translate-y-0.5 transition-all"
               >
                 Mulai Sekarang
