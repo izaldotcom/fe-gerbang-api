@@ -119,10 +119,12 @@ export const apiService = {
   getProfile: () => fetchAPI("/auth/me", { method: "GET" }),
 
   // === ORDERS ===
-  createOrder: (payload) =>
+  createOrder: (payload, apiKey) =>
     fetchAPI("/seller/order", {
       method: "POST",
-      headers: { "X-API-KEY": "MTR-TEST-KEY" },
+      headers: {
+        "X-API-KEY": apiKey, // Value dinamis dari parameter
+      },
       body: JSON.stringify(payload),
     }),
 };

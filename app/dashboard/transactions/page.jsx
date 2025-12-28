@@ -9,6 +9,9 @@ export default function TransactionPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // === NEW: State untuk menyimpan API Key dari User Profile ===
+  const [userApiKey, setUserApiKey] = useState(null);
+
   // State Form
   const [formData, setFormData] = useState({
     supplier_id: "",
@@ -54,11 +57,28 @@ export default function TransactionPage() {
   useEffect(() => {
     generateRefId();
     fetchData();
+    fetchUserProfile(); // Panggil fungsi ambil profil/api key
   }, []);
 
   const generateRefId = () => {
     const uniqueId = `ORDER-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     setFormData((prev) => ({ ...prev, ref_id: uniqueId }));
+  };
+
+  // === NEW: Fungsi Fetch User Profile ===
+  const fetchUserProfile = async () => {
+    try {
+      const response = await apiService.getProfile();
+      // Pastikan struktur response sesuai (response.data.api_key)
+      if (response.data && response.data.api_key) {
+        setUserApiKey(response.data.api_key);
+        console.log("User API Key loaded.");
+      } else {
+        console.warn("API Key tidak ditemukan di profil user.");
+      }
+    } catch (err) {
+      console.error("Gagal memuat profil user untuk transaksi:", err);
+    }
   };
 
   const fetchData = async () => {
@@ -103,9 +123,18 @@ export default function TransactionPage() {
     if (!formData.supplier_id)
       return alert("Mohon pilih supplier terlebih dahulu.");
 
+    // === NEW: Validasi API Key ===
+    if (!userApiKey) {
+      return alert(
+        "Data akun belum termuat sepenuhnya. Silakan refresh halaman."
+      );
+    }
+
     setIsSubmitting(true);
     try {
-      const response = await apiService.createOrder(formData);
+      // === UPDATED: Kirim userApiKey sebagai parameter kedua ===
+      const response = await apiService.createOrder(formData, userApiKey);
+
       setSuccessData(response);
       setIsSuccessModalOpen(true);
 
@@ -153,7 +182,7 @@ export default function TransactionPage() {
               </h2>
             </div>
 
-            {/* TOMBOL RESET SUPPLIER (BARU) */}
+            {/* TOMBOL RESET SUPPLIER */}
             {formData.supplier_id && (
               <button
                 type="button"
