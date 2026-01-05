@@ -114,7 +114,8 @@ export const apiService = {
 
   // === USERS ===
   getUsers: () => fetchAPI("/users", { method: "GET" }),
-
+  verifyUser: (payload) =>
+    fetchAPI("/verify", { method: "POST", body: JSON.stringify(payload) }),
   // === USER PROFILE (Ambil data dari Redis via Backend) ===
   getProfile: () => fetchAPI("/auth/me", { method: "GET" }),
 
@@ -126,5 +127,14 @@ export const apiService = {
         "X-API-KEY": apiKey, // Value dinamis dari parameter
       },
       body: JSON.stringify(payload),
+    }),
+
+  // === ORDER HISTORY (BARU) ===
+  getOrderHistory: (apiKey) =>
+    fetchAPI("/seller/order/history", {
+      method: "GET",
+      headers: {
+        "X-API-KEY": apiKey, // Value dinamis dari parameter
+      },
     }),
 };

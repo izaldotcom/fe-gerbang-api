@@ -85,13 +85,14 @@ export default function DashboardLayout({ children }) {
     {
       title: "Manajemen Data",
       items: [
-        { name: "Products", href: "/dashboard/products", icon: "📦" },
+        { name: "Users", href: "/dashboard/users", icon: "👥" },
         { name: "Suppliers", href: "/dashboard/suppliers", icon: "🚚" },
         {
           name: "Supplier Products",
           href: "/dashboard/suppliers/products",
           icon: "🏷️",
         },
+        { name: "Products", href: "/dashboard/products", icon: "📦" },
         { name: "Product Recipes", href: "/dashboard/recipes", icon: "📜" },
       ],
     },

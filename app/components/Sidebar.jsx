@@ -34,7 +34,7 @@ export default function Sidebar() {
     { name: "Products", href: "/dashboard/products", icon: "📦" },
     { name: "Product Recipes", href: "/dashboard/recipes", icon: "📜" },
     { name: "Transaksi Baru", href: "/dashboard/transactions", icon: "🛒" },
-    // { name: "Users", href: "/dashboard/users", icon: "👥" },
+    { name: "Users", href: "/dashboard/users", icon: "👥" },
   ];
 
   // 1. Fungsi Konfirmasi Logout (Dieksekusi jika user klik "Ya, Keluar")
