@@ -2,15 +2,14 @@
 import { useState, useEffect } from "react";
 import { apiService } from "@/services/api";
 import Modal from "@/app/components/Modal";
+import { useUser } from "@/app/context/UserContext";
 
 export default function TransactionPage() {
+  const { user } = useUser();
   const [products, setProducts] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // === NEW: State untuk menyimpan API Key dari User Profile ===
-  const [userApiKey, setUserApiKey] = useState(null);
 
   // State Form
   const [formData, setFormData] = useState({
@@ -57,28 +56,11 @@ export default function TransactionPage() {
   useEffect(() => {
     generateRefId();
     fetchData();
-    fetchUserProfile(); // Panggil fungsi ambil profil/api key
   }, []);
 
   const generateRefId = () => {
     const uniqueId = `ORDER-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     setFormData((prev) => ({ ...prev, ref_id: uniqueId }));
-  };
-
-  // === NEW: Fungsi Fetch User Profile ===
-  const fetchUserProfile = async () => {
-    try {
-      const response = await apiService.getProfile();
-      // Pastikan struktur response sesuai (response.data.api_key)
-      if (response.data && response.data.api_key) {
-        setUserApiKey(response.data.api_key);
-        console.log("User API Key loaded.");
-      } else {
-        console.warn("API Key tidak ditemukan di profil user.");
-      }
-    } catch (err) {
-      console.error("Gagal memuat profil user untuk transaksi:", err);
-    }
   };
 
   const fetchData = async () => {
@@ -124,16 +106,16 @@ export default function TransactionPage() {
       return alert("Mohon pilih supplier terlebih dahulu.");
 
     // === NEW: Validasi API Key ===
-    if (!userApiKey) {
+    if (!user.api_key) {
       return alert(
-        "Data akun belum termuat sepenuhnya. Silakan refresh halaman."
+        "Data akun belum termuat sepenuhnya. Silakan refresh halaman.",
       );
     }
 
     setIsSubmitting(true);
     try {
       // === UPDATED: Kirim userApiKey sebagai parameter kedua ===
-      const response = await apiService.createOrder(formData, userApiKey);
+      const response = await apiService.createOrder(formData, user.api_key);
 
       setSuccessData(response);
       setIsSuccessModalOpen(true);

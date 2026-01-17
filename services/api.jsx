@@ -69,7 +69,6 @@ export const apiService = {
   deleteSupplier: (id) => fetchAPI(`/suppliers/${id}`, { method: "DELETE" }),
 
   // === SUPPLIER PRODUCTS ===
-  // Pastikan endpoint ini benar ada di backend. Jika belum ada, akan menyebabkan 404 juga.
   getSupplierProducts: () => fetchAPI("/supplier-products", { method: "GET" }),
   createSupplierProduct: (payload) =>
     fetchAPI("/supplier-products", {
@@ -85,10 +84,7 @@ export const apiService = {
     fetchAPI(`/supplier-products/${id}`, { method: "DELETE" }),
 
   // === PRODUCTS ===
-  // PERBAIKAN DI SINI: Kembalikan ke "/products" (jamak) untuk GET list
   getProducts: () => fetchAPI("/products", { method: "GET" }),
-
-  // Create/Update/Delete tetap "/product" (tunggal) sesuai instruksi terakhir
   createProduct: (payload) =>
     fetchAPI("/product", { method: "POST", body: JSON.stringify(payload) }),
   updateProduct: (id, payload) =>
@@ -99,7 +95,6 @@ export const apiService = {
   deleteProduct: (id) => fetchAPI(`/product?id=${id}`, { method: "DELETE" }),
 
   // === RECIPES ===
-  // Pastikan endpoint ini juga sudah ada di backend
   getRecipes: () => fetchAPI("/recipes", { method: "GET" }),
   createRecipe: (payload) =>
     fetchAPI("/recipes", { method: "POST", body: JSON.stringify(payload) }),
@@ -116,25 +111,36 @@ export const apiService = {
   getUsers: () => fetchAPI("/users", { method: "GET" }),
   verifyUser: (payload) =>
     fetchAPI("/verify", { method: "POST", body: JSON.stringify(payload) }),
-  // === USER PROFILE (Ambil data dari Redis via Backend) ===
+
+  // === USER PROFILE (AUTH) ===
   getProfile: () => fetchAPI("/auth/me", { method: "GET" }),
+
+  // === SELLER PROFILE (BARU) ===
+  // Ditambahkan sesuai permintaan gambar (menggunakan header X-API-KEY)
+  getSellerProfile: (apiKey) =>
+    fetchAPI("/seller/profile", {
+      method: "GET",
+      headers: {
+        "X-API-KEY": apiKey, // Value dinamis dari parameter
+      },
+    }),
 
   // === ORDERS ===
   createOrder: (payload, apiKey) =>
     fetchAPI("/seller/order", {
       method: "POST",
       headers: {
-        "X-API-KEY": apiKey, // Value dinamis dari parameter
+        "X-API-KEY": apiKey,
       },
       body: JSON.stringify(payload),
     }),
 
-  // === ORDER HISTORY (BARU) ===
+  // === ORDER HISTORY ===
   getOrderHistory: (apiKey) =>
     fetchAPI("/seller/order/history", {
       method: "GET",
       headers: {
-        "X-API-KEY": apiKey, // Value dinamis dari parameter
+        "X-API-KEY": apiKey,
       },
     }),
 };

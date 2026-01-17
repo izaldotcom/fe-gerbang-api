@@ -2,9 +2,11 @@
 import { useState, useEffect } from "react";
 import Modal from "@/app/components/Modal";
 import { apiService } from "@/services/api";
+import { useUser } from "@/app/context/UserContext";
 
 export default function ProductsPage() {
   // State Data Utama
+  const { user } = useUser();
   const [products, setProducts] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [recipes, setRecipes] = useState([]);
@@ -69,19 +71,13 @@ export default function ProductsPage() {
   const fetchData = async () => {
     try {
       setIsLoading(true);
-      const [
-        productsRes,
-        suppliersRes,
-        recipesRes,
-        supplierProdRes,
-        profileRes,
-      ] = await Promise.all([
-        apiService.getProducts(),
-        apiService.getSuppliers(),
-        apiService.getRecipes(),
-        apiService.getSupplierProducts(),
-        apiService.getProfile(), // Ambil data user login
-      ]);
+      const [productsRes, suppliersRes, recipesRes, supplierProdRes] =
+        await Promise.all([
+          apiService.getProducts(),
+          apiService.getSuppliers(),
+          apiService.getRecipes(),
+          apiService.getSupplierProducts(),
+        ]);
 
       setProducts(productsRes.data || []);
       setSuppliers(suppliersRes.data || []);
@@ -89,8 +85,8 @@ export default function ProductsPage() {
       setSupplierProducts(supplierProdRes.data || []);
 
       // Set Role User
-      if (profileRes.data) {
-        setUserRole(profileRes.data.role_name);
+      if (user) {
+        setUserRole(user.role_name);
       }
     } catch (err) {
       console.error("Gagal ambil data:", err.message);
@@ -113,7 +109,7 @@ export default function ProductsPage() {
         if (!recipeGroup || !recipeGroup.items) return false;
         return recipeGroup.items.some((item) => {
           const sp = supplierProducts.find(
-            (s) => s.id === item.supplier_product_id
+            (s) => s.id === item.supplier_product_id,
           );
           return sp && sp.supplier_id === selectedSupplierId;
         });

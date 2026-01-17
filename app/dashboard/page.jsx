@@ -2,8 +2,10 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { apiService } from "@/services/api";
+import { useUser } from "@/app/context/UserContext";
 
 export default function DashboardPage() {
+  const { user } = useUser();
   const [role, setRole] = useState(null);
   const [userName, setUserName] = useState("User");
   const [loading, setLoading] = useState(true);
@@ -24,15 +26,11 @@ export default function DashboardPage() {
       try {
         setLoading(true);
 
-        // 1. Ambil Profil User (termasuk API Key & Role)
-        const profileRes = await apiService.getProfile();
-        const userData = profileRes.data;
-
-        const userRole = userData?.role_name || "Customer";
-        const userApiKey = userData?.api_key; // Ambil API Key untuk request history
+        const userRole = user?.role_name || "Customer";
+        const userApiKey = user?.api_key; // Ambil API Key untuk request history
 
         setRole(userRole);
-        setUserName(userData?.name || "User");
+        setUserName(user?.name || "User");
 
         // 2. Logika Pengambilan Data Berdasarkan Role
         if (userRole === "Admin") {
@@ -207,7 +205,7 @@ function AdminDashboard({ userName, stats }) {
 function CustomerDashboard({ userName, orderHistory = [] }) {
   // Hitung Data Statistik dari History
   const successCount = orderHistory.filter(
-    (o) => o.status?.toLowerCase() === "success"
+    (o) => o.status?.toLowerCase() === "success",
   ).length;
   const lastOrder = orderHistory.length > 0 ? orderHistory[0] : null;
   const lastStatus = lastOrder ? lastOrder.status : "Belum ada transaksi";

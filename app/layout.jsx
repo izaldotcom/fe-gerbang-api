@@ -1,4 +1,5 @@
 import "./globals.css";
+import { UserProvider } from "./context/UserContext"; // 1. Import Provider
 
 export const metadata = {
   title: "Gerbang API",
@@ -7,10 +8,9 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    // Tambahkan suppressHydrationWarning di sini
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased" suppressHydrationWarning>
-        {children}
+        <UserProvider>{children}</UserProvider>
       </body>
     </html>
   );

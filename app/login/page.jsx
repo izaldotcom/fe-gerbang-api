@@ -4,9 +4,13 @@ import Link from "next/link";
 import { useState } from "react";
 import Cookies from "js-cookie";
 import { apiService } from "../../services/api";
+import { useUser } from "@/app/context/UserContext";
 
 export default function LoginPage() {
   const router = useRouter();
+
+  // 2. Ambil fungsi setUser dari Context
+  const { setUser } = useUser();
 
   // State UI
   const [selectedRole, setSelectedRole] = useState(null); // 'admin' | 'user' | null
@@ -31,17 +35,18 @@ export default function LoginPage() {
         payload.identifier = loginInput;
       }
 
+      // A. Login API
       const data = await apiService.login(payload);
 
+      // B. Simpan Token
       Cookies.set("token", data.access_token, { expires: 1 });
       Cookies.set("refresh_token", data.refresh_token, { expires: 7 });
+      setUser(data.user);
 
-      // === PERUBAHAN DI SINI ===
-      // Baik Admin maupun Customer diarahkan ke Dashboard utama
-      // Layout Dashboard akan otomatis memfilter menu sesuai role
+      // D. Redirect
       router.push("/dashboard");
     } catch (err) {
-      setErrorMsg(err.message);
+      setErrorMsg(err.message || "Gagal login, periksa kembali data Anda.");
     } finally {
       setLoading(false);
     }
@@ -326,8 +331,8 @@ export default function LoginPage() {
                       loading
                         ? "bg-gray-400 cursor-not-allowed"
                         : selectedRole === "admin"
-                        ? "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-blue-500/30"
-                        : "bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 shadow-green-500/30"
+                          ? "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-blue-500/30"
+                          : "bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 shadow-green-500/30"
                     }`}
                 >
                   {loading ? "Memproses..." : "Masuk Sekarang"}

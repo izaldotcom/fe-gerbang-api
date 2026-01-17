@@ -1,18 +1,17 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import Cookies from "js-cookie";
 import Modal from "@/app/components/Modal";
-import { apiService } from "@/services/api"; // Pastikan import API Service
+import { useUser } from "@/app/context/UserContext";
 
 export default function DashboardLayout({ children }) {
   const pathname = usePathname();
-  const router = useRouter();
+  const { user } = useUser();
 
-  // State User Data (Role & Name)
-  const [userRole, setUserRole] = useState(null); // "Admin" atau "Customer"
-  const [userName, setUserName] = useState("Loading...");
+  const userRole = user?.role_name;
+  const userName = user?.name || "Loading...";
 
   // State Sidebar & Modal
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -22,27 +21,7 @@ export default function DashboardLayout({ children }) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef(null);
 
-  // === 1. FETCH USER PROFILE (FROM REDIS) ===
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      try {
-        // Panggil endpoint /auth/me atau yang sesuai untuk load session Redis
-        const response = await apiService.getProfile();
-
-        if (response.data) {
-          // Mapping data dari Redis
-          setUserRole(response.data.role_name);
-          setUserName(response.data.name);
-        }
-      } catch (err) {
-        console.error("Gagal memuat profil user:", err);
-        // Opsional: Redirect ke login jika session invalid/expired
-        // router.push("/login");
-      }
-    };
-
-    fetchUserProfile();
-  }, []);
+  // (Bagian useEffect fetchUserProfile LAMA telah DIHAPUS di sini)
 
   // Tutup sidebar saat pindah halaman
   useEffect(() => {
@@ -70,7 +49,8 @@ export default function DashboardLayout({ children }) {
   const confirmLogout = () => {
     Cookies.remove("token");
     Cookies.remove("refresh_token");
-    router.push("/login");
+    // Opsional: Reset context jika perlu, tapi reload halaman login akan otomatis reset
+    window.location.href = "/login";
   };
 
   // === DEFINISI MENU BASE ===
@@ -98,16 +78,16 @@ export default function DashboardLayout({ children }) {
     },
   ];
 
-  // === LOGIKA FILTER MENU BERDASARKAN ROLE ===
+  // === LOGIKA FILTER MENU BERDASARKAN ROLE DARI CONTEXT ===
   const getFilteredMenus = () => {
-    if (!userRole) return []; // Tunggu data role terload
+    if (!userRole) return []; // Tunggu data context siap
 
     return baseMenuGroups
       .map((group) => {
         const filteredItems = group.items.filter((item) => {
           // SKENARIO 1: ADMIN
           if (userRole === "Admin") {
-            // Admin tidak butuh menu "Transaksi Baru" (biasanya customer yg order)
+            // Admin tidak butuh menu "Transaksi Baru"
             return item.name !== "Transaksi Baru";
           }
 
@@ -306,9 +286,13 @@ export default function DashboardLayout({ children }) {
                 </div>
 
                 <div className="py-1">
-                  <button className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors">
+                  <Link
+                    href="/dashboard/account"
+                    onClick={() => setIsProfileOpen(false)}
+                    className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors"
+                  >
                     <span className="text-lg">⚙️</span> Pengaturan Akun
-                  </button>
+                  </Link>
                 </div>
 
                 <div className="border-t border-gray-100 my-1"></div>

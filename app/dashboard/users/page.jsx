@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { apiService } from "@/services/api";
-import Modal from "@/app/components/Modal";
+import Modal from "@/app/components/Modal"; // Menggunakan komponen Modal yang sudah ada
 
 export default function UsersPage() {
   // === STATE DATA ===
@@ -23,8 +23,9 @@ export default function UsersPage() {
   const [menuOpenId, setMenuOpenId] = useState(null);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
 
-  // === NEW: STATE MODAL APPROVE ===
+  // === STATE MODAL APPROVE & SUKSES ===
   const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false); // State baru untuk modal sukses
   const [userToApprove, setUserToApprove] = useState(null);
   const [isApproving, setIsApproving] = useState(false);
 
@@ -45,9 +46,7 @@ export default function UsersPage() {
     fetchUsers();
   }, []);
 
-  // 2. LOGIC MENU FLOATING (ANTI TENGGELAM)
-  // Kita menghitung posisi tombol saat diklik agar menu muncul tepat di situ
-  // tapi rendernya di layer paling atas (fixed)
+  // 2. LOGIC MENU FLOATING
   const handleToggleMenu = (e, userId) => {
     e.stopPropagation();
     if (menuOpenId === userId) {
@@ -55,18 +54,16 @@ export default function UsersPage() {
     } else {
       const rect = e.currentTarget.getBoundingClientRect();
       setMenuPosition({
-        top: rect.bottom + 5, // Sedikit di bawah tombol
-        left: rect.left - 120, // Geser ke kiri sedikit agar rapi
+        top: rect.bottom + 5,
+        left: rect.left - 120,
       });
       setMenuOpenId(userId);
     }
   };
 
-  // Tutup menu jika klik di luar
   useEffect(() => {
     const closeMenu = () => setMenuOpenId(null);
     window.addEventListener("click", closeMenu);
-    // Tutup juga jika di-scroll agar posisi tidak lari
     window.addEventListener("scroll", closeMenu, true);
     return () => {
       window.removeEventListener("click", closeMenu);
@@ -74,13 +71,13 @@ export default function UsersPage() {
     };
   }, []);
 
-  // === 3. HANDLERS APPROVE (DENGAN MODAL) ===
+  // === 3. HANDLERS APPROVE ===
 
-  // A. Buka Modal Approve
+  // A. Buka Modal Konfirmasi
   const handleOpenApproveModal = (user) => {
-    setMenuOpenId(null); // Tutup menu dropdown dulu
-    setUserToApprove(user); // Simpan data user yang mau diapprove
-    setIsApproveModalOpen(true); // Buka modal
+    setMenuOpenId(null);
+    setUserToApprove(user);
+    setIsApproveModalOpen(true);
   };
 
   // B. Eksekusi Approve ke API
@@ -94,16 +91,23 @@ export default function UsersPage() {
         action: "approve",
       });
 
-      // Refresh Data & Tutup Modal
+      // Refresh Data
       fetchUsers();
+
+      // Tutup Modal Konfirmasi & Buka Modal Sukses
       setIsApproveModalOpen(false);
-      setUserToApprove(null);
-      alert("User berhasil diverifikasi/diapprove!");
+      setIsSuccessModalOpen(true); // <--- Ganti Alert dengan ini
     } catch (err) {
-      alert(`Gagal approve: ${err.message}`);
+      alert(`Gagal approve: ${err.message}`); // Error tetap alert atau bisa diganti toast
     } finally {
       setIsApproving(false);
     }
+  };
+
+  // C. Tutup Modal Sukses & Reset State
+  const handleCloseSuccessModal = () => {
+    setIsSuccessModalOpen(false);
+    setUserToApprove(null);
   };
 
   // === 4. HANDLERS CRUD LAINNYA ===
@@ -245,7 +249,6 @@ export default function UsersPage() {
                       </td>
                       <td className="p-5">{getStatusBadge(item.status)}</td>
                       <td className="p-5 text-right relative">
-                        {/* TOMBOL TITIK TIGA */}
                         <button
                           onClick={(e) => handleToggleMenu(e, item.id)}
                           className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors focus:outline-none"
@@ -275,8 +278,7 @@ export default function UsersPage() {
         )}
       </div>
 
-      {/* === FLOATING MENU (FIXED POSITION) === */}
-      {/* Menu ini dirender di luar tabel agar tidak tenggelam */}
+      {/* === FLOATING MENU === */}
       {menuOpenId && (
         <div
           className="fixed z-50 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-1 overflow-hidden animate-in fade-in zoom-in-95 duration-200"
@@ -286,7 +288,6 @@ export default function UsersPage() {
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Item Menu: Approve (Hanya jika status Register) */}
           {users.find((u) => u.id === menuOpenId)?.status?.toLowerCase() ===
             "register" && (
             <button
@@ -357,7 +358,6 @@ export default function UsersPage() {
         title={isEditing ? "Edit User" : "Tambah User Baru"}
       >
         <form onSubmit={handleSubmit} className="space-y-4 text-gray-900">
-          {/* FORM FIELDS TETAP SAMA */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Nama Lengkap
@@ -438,14 +438,14 @@ export default function UsersPage() {
         </form>
       </Modal>
 
-      {/* === MODAL 2: CONFIRM APPROVE (BARU) === */}
+      {/* === MODAL 2: KONFIRMASI APPROVE === */}
       <Modal
         isOpen={isApproveModalOpen}
         onClose={() => setIsApproveModalOpen(false)}
         title="Konfirmasi Persetujuan"
       >
         <div className="text-center">
-          <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
@@ -481,7 +481,7 @@ export default function UsersPage() {
             <button
               onClick={handleConfirmApprove}
               disabled={isApproving}
-              className="py-2.5 rounded-lg bg-green-600 text-white font-bold hover:bg-green-700 shadow-lg transition flex justify-center items-center gap-2"
+              className="py-2.5 rounded-lg bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-lg transition flex justify-center items-center gap-2"
             >
               {isApproving ? (
                 <>
@@ -512,6 +512,34 @@ export default function UsersPage() {
               )}
             </button>
           </div>
+        </div>
+      </Modal>
+
+      {/* === MODAL 3: SUKSES APPROVE (PENGGANTI ALERT) === */}
+      <Modal
+        isOpen={isSuccessModalOpen}
+        onClose={handleCloseSuccessModal}
+        title="Berhasil"
+      >
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto text-3xl shadow-sm animate-in zoom-in duration-300">
+            ✓
+          </div>
+          <div>
+            <h3 className="text-xl font-bold text-gray-800">
+              User Berhasil Disetujui!
+            </h3>
+            <p className="text-gray-500 text-sm mt-2">
+              Akun pengguna <b>{userToApprove?.name}</b> telah aktif dan siap
+              digunakan.
+            </p>
+          </div>
+          <button
+            onClick={handleCloseSuccessModal}
+            className="w-full bg-green-600 text-white py-3 rounded-xl hover:bg-green-700 transition font-bold shadow-lg mt-2"
+          >
+            Tutup
+          </button>
         </div>
       </Modal>
     </div>
