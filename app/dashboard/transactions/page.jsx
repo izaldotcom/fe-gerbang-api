@@ -1,10 +1,12 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation"; // 1. Import useRouter
 import { apiService } from "@/services/api";
 import Modal from "@/app/components/Modal";
 import { useUser } from "@/app/context/UserContext";
 
 export default function TransactionPage() {
+  const router = useRouter(); // 2. Init Router
   const { user } = useUser();
   const [products, setProducts] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
@@ -22,6 +24,9 @@ export default function TransactionPage() {
   // State Modal Sukses
   const [successData, setSuccessData] = useState(null);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+
+  // === 3. STATE MODAL ERROR WEBHOOK ===
+  const [isWebhookModalOpen, setIsWebhookModalOpen] = useState(false);
 
   // === HELPERS UI ===
   const getInitials = (name) => {
@@ -52,7 +57,7 @@ export default function TransactionPage() {
     }).format(num);
   };
 
-  // === 1. INITIAL FETCH ===
+  // === INITIAL FETCH ===
   useEffect(() => {
     generateRefId();
     fetchData();
@@ -79,19 +84,26 @@ export default function TransactionPage() {
     }
   };
 
-  // === 2. FILTER LOGIC ===
   const filteredProducts = formData.supplier_id
     ? products.filter((p) => p.supplier_id === formData.supplier_id)
     : [];
 
-  // === 3. HANDLERS ===
+  // === 4. MODIFIED HANDLER SELECT SUPPLIER ===
   const handleSelectSupplier = (id) => {
+    // Validasi: Cek apakah user sudah login dan punya webhook_url
+    // Jika user belum load, kita anggap aman dulu atau tunggu (tergantung UX),
+    // tapi biasanya user context sudah ready di sini.
+
+    if (user && !user.webhook_url) {
+      setIsWebhookModalOpen(true); // Tampilkan Modal Error
+      return; // Stop eksekusi, jangan pilih supplier
+    }
+
+    // Jika Webhook URL ada, lanjutkan logika normal
     setFormData((prev) => {
-      // Toggle Logic: Jika diklik lagi, reset supplier
       if (prev.supplier_id === id) {
         return { ...prev, supplier_id: "", product_id: "" };
       }
-      // Jika supplier baru, set supplier dan reset product
       return { ...prev, supplier_id: id, product_id: "" };
     });
   };
@@ -105,7 +117,6 @@ export default function TransactionPage() {
     if (!formData.supplier_id)
       return alert("Mohon pilih supplier terlebih dahulu.");
 
-    // === NEW: Validasi API Key ===
     if (!user.api_key) {
       return alert(
         "Data akun belum termuat sepenuhnya. Silakan refresh halaman.",
@@ -114,13 +125,11 @@ export default function TransactionPage() {
 
     setIsSubmitting(true);
     try {
-      // === UPDATED: Kirim userApiKey sebagai parameter kedua ===
       const response = await apiService.createOrder(formData, user.api_key);
 
       setSuccessData(response);
       setIsSuccessModalOpen(true);
 
-      // Reset Form (kecuali Ref ID & Supplier)
       setFormData((prev) => ({
         ...prev,
         product_id: "",
@@ -139,9 +148,14 @@ export default function TransactionPage() {
     generateRefId();
   };
 
+  // Fungsi Redirect ke Account Settings
+  const goToAccountSettings = () => {
+    setIsWebhookModalOpen(false);
+    router.push("/dashboard/account");
+  };
+
   return (
     <div className="max-w-6xl mx-auto text-gray-900 pb-20">
-      {/* HEADER PAGE */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-800">
           Buat Transaksi Baru
@@ -152,7 +166,7 @@ export default function TransactionPage() {
       </div>
 
       <form onSubmit={handleSubmit}>
-        {/* === SECTION 1: PILIH SUPPLIER (GRID) === */}
+        {/* === SECTION 1: PILIH SUPPLIER === */}
         <div className="mb-10">
           <div className="flex items-center gap-4 mb-4 h-8">
             <div className="flex items-center gap-2">
@@ -164,7 +178,6 @@ export default function TransactionPage() {
               </h2>
             </div>
 
-            {/* TOMBOL RESET SUPPLIER */}
             {formData.supplier_id && (
               <button
                 type="button"
@@ -244,7 +257,7 @@ export default function TransactionPage() {
           )}
         </div>
 
-        {/* === SECTION 2: DETAIL ORDER (FORM CARD) === */}
+        {/* === SECTION 2: DETAIL ORDER === */}
         <div
           className={`transition-all duration-500 ease-in-out ${
             formData.supplier_id
@@ -263,7 +276,7 @@ export default function TransactionPage() {
 
           <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 md:p-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* KOLOM KIRI: PRODUK */}
+              {/* KOLOM KIRI */}
               <div className="space-y-6">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -291,7 +304,6 @@ export default function TransactionPage() {
                         </option>
                       ))}
                     </select>
-                    {/* Custom Arrow */}
                     <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-gray-500">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -346,7 +358,7 @@ export default function TransactionPage() {
                 </div>
               </div>
 
-              {/* KOLOM KANAN: INFO & TOMBOL */}
+              {/* KOLOM KANAN */}
               <div className="flex flex-col justify-between space-y-6">
                 <div className="bg-blue-50 rounded-xl p-5 border border-blue-100">
                   <label className="block text-xs font-bold text-blue-800 uppercase tracking-wide mb-2">
@@ -438,6 +450,58 @@ export default function TransactionPage() {
           >
             Tutup & Buat Baru
           </button>
+        </div>
+      </Modal>
+
+      {/* === 5. MODAL ERROR WEBHOOK === */}
+      <Modal
+        isOpen={isWebhookModalOpen}
+        onClose={() => setIsWebhookModalOpen(false)}
+        title="⚠️ Webhook URL Diperlukan"
+      >
+        <div className="text-center sm:text-left">
+          <div className="flex flex-col sm:flex-row items-center gap-4 mb-4">
+            <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+                className="w-6 h-6"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
+                />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">
+                Webhook URL Belum Diatur
+              </h3>
+              <p className="text-sm text-gray-500">
+                Anda harus mengatur <strong>Webhook URL</strong> di pengaturan
+                akun terlebih dahulu sebelum dapat melakukan transaksi.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 mt-6">
+            <button
+              onClick={() => setIsWebhookModalOpen(false)}
+              className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium transition"
+            >
+              Nanti Saja
+            </button>
+            <button
+              onClick={goToAccountSettings}
+              className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-medium shadow-md transition"
+            >
+              Atur Webhook Sekarang →
+            </button>
+          </div>
         </div>
       </Modal>
     </div>

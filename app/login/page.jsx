@@ -41,6 +41,7 @@ export default function LoginPage() {
       // B. Simpan Token
       Cookies.set("token", data.access_token, { expires: 1 });
       Cookies.set("refresh_token", data.refresh_token, { expires: 7 });
+      Cookies.set("user_api_key", data.user.api_key, { expires: 7 });
       setUser(data.user);
 
       // D. Redirect

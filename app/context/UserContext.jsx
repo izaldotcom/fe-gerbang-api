@@ -10,30 +10,30 @@ export const UserProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fungsi untuk mengembalikan data user saat halaman di-refresh
     const restoreSession = async () => {
       const token = Cookies.get("token");
+      // Ambil API Key yang sudah kita simpan saat login
+      const storedApiKey = Cookies.get("user_api_key");
 
       if (token) {
         try {
-          // PERUBAHAN: Menggunakan getProfile() sesuai permintaan
-          const response = await apiService.getProfile();
+          console.log("Restoring session...");
+
+          // Gunakan API Key dari cookies (jika ada) untuk request profile
+          // Jika storedApiKey kosong, kita kirim string kosong ""
+          const response = await apiService.getSellerProfile(
+            storedApiKey || "",
+          );
 
           if (response.data) {
-            // Simpan data user (termasuk api_key jika ada) ke state global
             setUser(response.data);
-
-            // === LOGIKA CEK API KEY (Sesuai Request) ===
-            // Mengecek apakah api_key tersedia di dalam response profil
-            if (response.data.api_key) {
-              console.log("User API Key loaded:", response.data.api_key);
-            } else {
-              console.warn("API Key tidak ditemukan di profil user.");
-            }
+            console.log("Session restored for:", response.data.name);
           }
         } catch (err) {
           console.error("Gagal mengembalikan sesi:", err);
-          // Opsional: Cookies.remove("token") jika token tidak valid
+          // Jika token invalid (401), bersihkan cookies
+          // Cookies.remove("token");
+          // Cookies.remove("user_api_key");
         }
       }
 
