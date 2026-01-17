@@ -49,7 +49,7 @@ export default function DashboardLayout({ children }) {
   const confirmLogout = () => {
     Cookies.remove("token");
     Cookies.remove("refresh_token");
-    // Opsional: Reset context jika perlu, tapi reload halaman login akan otomatis reset
+    Cookies.remove("user_api_key");
     window.location.href = "/login";
   };
 

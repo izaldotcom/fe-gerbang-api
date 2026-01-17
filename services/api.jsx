@@ -125,6 +125,16 @@ export const apiService = {
       },
     }),
 
+  // [BARU] UPDATE SELLER PROFILE
+  updateSellerProfile: (payload, apiKey) =>
+    fetchAPI("/seller/profile", {
+      method: "PUT",
+      headers: {
+        "X-API-KEY": apiKey, // Wajib ada sesuai instruksi backend
+      },
+      body: JSON.stringify(payload),
+    }),
+
   // === ORDERS ===
   createOrder: (payload, apiKey) =>
     fetchAPI("/seller/order", {

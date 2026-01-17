@@ -2,9 +2,9 @@
 import { useState, useEffect } from "react";
 import { apiService } from "@/services/api";
 import { useUser } from "@/app/context/UserContext";
+import Modal from "@/app/components/Modal"; // 1. Import Modal
 
 export default function AccountSettingsPage() {
-  // 1. Ambil state 'loading' dari context (beri nama alias 'contextLoading' agar tidak bentrok)
   const { user, loading: contextLoading } = useUser();
 
   const [loading, setLoading] = useState(true);
@@ -20,12 +20,18 @@ export default function AccountSettingsPage() {
     webhook_url: "",
   });
 
+  // 2. State untuk konfigurasi Modal
+  const [modalConfig, setModalConfig] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    type: "success", // 'success' | 'error' | 'info'
+  });
+
   // Fetch Data Profil
   useEffect(() => {
-    // 2. Cegah fetch berjalan jika Context masih loading atau User belum ada
     if (contextLoading) return;
 
-    // Jika context sudah selesai load tapi user null (misal token expired), stop.
     if (!user) {
       setLoading(false);
       return;
@@ -34,9 +40,6 @@ export default function AccountSettingsPage() {
     const fetchProfile = async () => {
       try {
         setLoading(true);
-
-        // 3. Gunakan user.api_key dengan aman (atau string kosong jika belum ada)
-        // Kita asumsikan endpoint ini juga bisa jalan hanya dengan Token (Cookies)
         const res = await apiService.getSellerProfile(user.api_key || "");
 
         if (res.data) {
@@ -57,8 +60,6 @@ export default function AccountSettingsPage() {
     };
 
     fetchProfile();
-
-    // 4. Tambahkan dependency array agar effect jalan ulang saat user/context siap
   }, [user, contextLoading]);
 
   const handleChange = (e) => {
@@ -66,23 +67,59 @@ export default function AccountSettingsPage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  // Helper untuk menampilkan Modal
+  const showModal = (title, message, type = "success") => {
+    setModalConfig({
+      isOpen: true,
+      title,
+      message,
+      type,
+    });
+  };
+
+  const closeModal = () => {
+    setModalConfig((prev) => ({ ...prev, isOpen: false }));
+  };
+
+  // === UPDATE PROFILE ===
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSaving(true);
 
-    // Simulasi Save
-    setTimeout(() => {
+    try {
+      const payload = {
+        name: formData.name,
+        phone: formData.phone,
+        webhook_url: formData.webhook_url,
+      };
+
+      await apiService.updateSellerProfile(payload, formData.apiKey);
+
+      // 3. Ganti alert sukses dengan Modal
+      showModal(
+        "Berhasil!",
+        "Profil Anda telah berhasil diperbarui.",
+        "success",
+      );
+    } catch (err) {
+      console.error("Update gagal:", err);
+      // 4. Ganti alert error dengan Modal
+      showModal(
+        "Gagal Menyimpan",
+        err.message || "Terjadi kesalahan saat memperbarui profil.",
+        "error",
+      );
+    } finally {
       setIsSaving(false);
-      alert("Profil berhasil diperbarui!");
-    }, 1000);
+    }
   };
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
-    alert("API Key disalin!");
+    // 5. Ganti alert copy dengan Modal Info
+    showModal("Disalin", "API Key berhasil disalin ke clipboard.", "info");
   };
 
-  // 5. Tampilkan loading jika Local Loading ATAU Context Loading masih jalan
   if (loading || contextLoading) {
     return (
       <div className="flex h-[50vh] items-center justify-center">
@@ -91,11 +128,10 @@ export default function AccountSettingsPage() {
     );
   }
 
-  // Jika user tidak ditemukan setelah loading selesai (opsional handling)
   if (!user) {
     return (
-      <div className="text-center mt-10">
-        User tidak ditemukan. Silakan login ulang.
+      <div className="text-center mt-10 text-gray-500">
+        Sesi habis atau user tidak ditemukan. Silakan login kembali.
       </div>
     );
   }
@@ -241,7 +277,11 @@ export default function AccountSettingsPage() {
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className={`px-6 py-2.5 rounded-xl font-bold text-white shadow-lg shadow-blue-500/30 transition-all transform hover:-translate-y-0.5 ${isSaving ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}
+                  className={`px-6 py-2.5 rounded-xl font-bold text-white shadow-lg shadow-blue-500/30 transition-all transform hover:-translate-y-0.5 ${
+                    isSaving
+                      ? "bg-blue-400 cursor-not-allowed"
+                      : "bg-blue-600 hover:bg-blue-700"
+                  }`}
                 >
                   {isSaving ? "Menyimpan..." : "Simpan Perubahan"}
                 </button>
@@ -249,6 +289,45 @@ export default function AccountSettingsPage() {
             </form>
           </div>
         </div>
+
+        {/* 6. Render Komponen Modal */}
+        <Modal
+          isOpen={modalConfig.isOpen}
+          onClose={closeModal}
+          title={modalConfig.title}
+        >
+          <div className="text-center space-y-4">
+            {/* Ikon Dinamis Berdasarkan Tipe */}
+            <div
+              className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto text-3xl shadow-sm ${
+                modalConfig.type === "success"
+                  ? "bg-green-100 text-green-600"
+                  : modalConfig.type === "error"
+                    ? "bg-red-100 text-red-600"
+                    : "bg-blue-100 text-blue-600"
+              }`}
+            >
+              {modalConfig.type === "success" && "✓"}
+              {modalConfig.type === "error" && "✕"}
+              {modalConfig.type === "info" && "ℹ"}
+            </div>
+
+            <p className="text-gray-600">{modalConfig.message}</p>
+
+            <button
+              onClick={closeModal}
+              className={`w-full py-3 rounded-xl text-white font-medium shadow-lg transition transform hover:-translate-y-0.5 ${
+                modalConfig.type === "success"
+                  ? "bg-green-600 hover:bg-green-700"
+                  : modalConfig.type === "error"
+                    ? "bg-red-600 hover:bg-red-700"
+                    : "bg-blue-600 hover:bg-blue-700"
+              }`}
+            >
+              Tutup
+            </button>
+          </div>
+        </Modal>
       </div>
     </div>
   );
