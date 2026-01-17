@@ -86,13 +86,14 @@ export const apiService = {
   // === PRODUCTS ===
   getProducts: () => fetchAPI("/products", { method: "GET" }),
   createProduct: (payload) =>
-    fetchAPI("/product", { method: "POST", body: JSON.stringify(payload) }),
+    fetchAPI("/products", { method: "POST", body: JSON.stringify(payload) }),
   updateProduct: (id, payload) =>
-    fetchAPI(`/product?id=${id}`, {
+    fetchAPI(`/products?id=${id}`, {
+      // <-- Perbaikan di sini
       method: "PUT",
       body: JSON.stringify(payload),
     }),
-  deleteProduct: (id) => fetchAPI(`/product?id=${id}`, { method: "DELETE" }),
+  deleteProduct: (id) => fetchAPI(`/products?id=${id}`, { method: "DELETE" }),
 
   // === RECIPES ===
   getRecipes: () => fetchAPI("/recipes", { method: "GET" }),
