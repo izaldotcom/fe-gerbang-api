@@ -10,15 +10,13 @@ export default function DashboardPage() {
   const [userName, setUserName] = useState("User");
   const [loading, setLoading] = useState(true);
 
-  // State untuk Statistik Admin
+  // State Stats & History (Sama seperti sebelumnya)
   const [stats, setStats] = useState({
     products: 0,
     suppliers: 0,
     recipes: 0,
     users: 0,
   });
-
-  // State untuk Riwayat Pesanan Customer
   const [orderHistory, setOrderHistory] = useState([]);
 
   useEffect(() => {
@@ -27,14 +25,12 @@ export default function DashboardPage() {
         setLoading(true);
 
         const userRole = user?.role_name || "Customer";
-        const userApiKey = user?.api_key; // Ambil API Key untuk request history
+        const userApiKey = user?.api_key;
 
         setRole(userRole);
         setUserName(user?.name || "User");
 
-        // 2. Logika Pengambilan Data Berdasarkan Role
         if (userRole === "Admin") {
-          // --- FETCH DATA KHUSUS ADMIN ---
           const [prodRes, suppRes, recipeRes, usersRes] = await Promise.all([
             apiService.getProducts(),
             apiService.getSuppliers(),
@@ -49,17 +45,13 @@ export default function DashboardPage() {
             users: usersRes.data?.length || 0,
           });
         } else {
-          // --- FETCH DATA KHUSUS CUSTOMER (ORDER HISTORY) ---
           if (userApiKey) {
             try {
-              // Kirim API Key sebagai parameter (sesuai perbaikan di api.jsx)
               const historyRes = await apiService.getOrderHistory(userApiKey);
               setOrderHistory(historyRes.data || []);
             } catch (err) {
               console.error("Gagal mengambil riwayat pesanan:", err);
             }
-          } else {
-            console.warn("API Key tidak ditemukan pada profil user.");
           }
         }
       } catch (err) {
@@ -70,7 +62,7 @@ export default function DashboardPage() {
     };
 
     initDashboard();
-  }, []);
+  }, [user]);
 
   if (loading) {
     return (
@@ -88,16 +80,20 @@ export default function DashboardPage() {
       {role === "Admin" ? (
         <AdminDashboard userName={userName} stats={stats} />
       ) : (
-        <CustomerDashboard userName={userName} orderHistory={orderHistory} />
+        <CustomerDashboard
+          userName={userName}
+          orderHistory={orderHistory}
+          user={user} // Pass full user object
+        />
       )}
     </div>
   );
 }
 
-// ==================================================================================
-// 1. KOMPONEN DASHBOARD ADMIN (TEMA: MIDNIGHT BLUE)
-// ==================================================================================
+// ... (Komponen AdminDashboard TETAP SAMA) ...
+// ... (Silakan salin kode AdminDashboard dari file sebelumnya) ...
 function AdminDashboard({ userName, stats }) {
+  // Gunakan kode AdminDashboard yang sama seperti sebelumnya
   return (
     <>
       {/* Hero Section */}
@@ -199,11 +195,9 @@ function AdminDashboard({ userName, stats }) {
   );
 }
 
-// ==================================================================================
-// 2. KOMPONEN DASHBOARD CUSTOMER (TEMA: EMERALD/TEAL)
-// ==================================================================================
-function CustomerDashboard({ userName, orderHistory = [] }) {
-  // Hitung Data Statistik dari History
+// ... (Komponen CustomerDashboard) ...
+function CustomerDashboard({ userName, orderHistory = [], user }) {
+  // Logic helpers (sama)
   const successCount = orderHistory.filter(
     (o) => o.status?.toLowerCase() === "success",
   ).length;
@@ -222,8 +216,8 @@ function CustomerDashboard({ userName, orderHistory = [] }) {
     });
   };
 
-  // Helper Badge Status
   const getStatusBadge = (status) => {
+    // (Kode badge sama seperti sebelumnya)
     const s = status?.toLowerCase();
     if (s === "success")
       return (
@@ -272,7 +266,7 @@ function CustomerDashboard({ userName, orderHistory = [] }) {
       </div>
 
       {/* Ringkasan Statistik */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <CompactStatusCard
           icon="⏳"
           title="Status Terakhir"
@@ -285,9 +279,12 @@ function CustomerDashboard({ userName, orderHistory = [] }) {
           value={`${successCount} Transaksi`}
           color="emerald"
         />
+
+        {/* PERUBAHAN: Gunakan user object utuh */}
+        <TelegramConnectCard user={user} />
       </div>
 
-      {/* Tabel Riwayat */}
+      {/* Tabel Riwayat (TETAP SAMA) */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-5 border-b border-slate-100 flex justify-between items-center">
           <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wide">
@@ -300,7 +297,6 @@ function CustomerDashboard({ userName, orderHistory = [] }) {
             Lihat Semua →
           </Link>
         </div>
-
         <div className="overflow-x-auto">
           {orderHistory.length === 0 ? (
             <div className="p-10 text-center text-slate-400 text-sm">
@@ -308,6 +304,7 @@ function CustomerDashboard({ userName, orderHistory = [] }) {
             </div>
           ) : (
             <table className="w-full text-left text-sm text-slate-600">
+              {/* ... (Header Table) ... */}
               <thead className="bg-slate-50 text-slate-500 uppercase font-bold text-[10px] tracking-wider">
                 <tr>
                   <th className="p-4">Tanggal</th>
@@ -360,6 +357,84 @@ function CustomerDashboard({ userName, orderHistory = [] }) {
 // 3. HELPER COMPONENTS (Cards, Shortcuts, etc)
 // ==================================================================================
 
+// [MODIFIED] Komponen Kartu Telegram dengan Status Terhubung
+function TelegramConnectCard({ user }) {
+  console.log(user);
+  const botUsername = "GerbangApiBot";
+
+  // Ambil ID dan status koneksi (asumsi fieldnya telegram_chat_id atau telegram_id)
+  // Sesuaikan field check ini dengan response API backend Anda sebenarnya
+  const isConnected = !!(
+    user?.telegram_chat_id ||
+    user?.telegram_id ||
+    user?.telegram_username
+  );
+  const userId = user?.id;
+
+  if (!userId) return null;
+
+  return (
+    <div
+      className={`p-4 rounded-xl border shadow-sm flex flex-col justify-between gap-3 relative overflow-hidden h-full transition-all
+      ${
+        isConnected
+          ? "bg-green-50 border-green-100"
+          : "bg-white border-blue-100"
+      }`}
+    >
+      {/* Dekorasi Background */}
+      <div
+        className={`absolute -right-6 -top-6 w-20 h-20 rounded-full blur-xl opacity-60 pointer-events-none 
+        ${isConnected ? "bg-green-200" : "bg-blue-50"}`}
+      ></div>
+
+      <div className="flex items-start justify-between relative z-10">
+        <div>
+          <p
+            className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${isConnected ? "text-green-600" : "text-slate-400"}`}
+          >
+            Notifikasi Telegram
+          </p>
+          <h3
+            className={`text-sm font-bold leading-tight ${isConnected ? "text-green-800" : "text-slate-700"}`}
+          >
+            {isConnected ? "Akun Terhubung" : "Hubungkan Telegram"}
+          </h3>
+        </div>
+        <div
+          className={`w-10 h-10 rounded-lg flex items-center justify-center text-xl shrink-0 
+          ${isConnected ? "bg-green-100 text-green-600" : "bg-blue-50 text-blue-500"}`}
+        >
+          ✈️
+        </div>
+      </div>
+
+      <div className="relative z-10 mt-auto">
+        {isConnected ? (
+          <button
+            disabled
+            className="flex items-center justify-center gap-2 w-full bg-green-200 text-green-700 text-xs font-bold py-2.5 rounded-lg cursor-default opacity-80"
+          >
+            <span>✓</span> Sudah Terhubung
+          </button>
+        ) : (
+          <a
+            href={`https://t.me/${botUsername}?start=${userId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 w-full bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold py-2.5 rounded-lg transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5"
+          >
+            <span>🔗</span> Hubungkan Sekarang
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ... (Komponen StatCard, ShortcutCard, CompactStatusCard SAMA seperti sebelumnya) ...
+// Silakan gunakan definisi komponen StatCard, ShortcutCard, CompactStatusCard dari file sebelumnya.
+
 function StatCard({ title, value, icon, theme, link }) {
   const themes = {
     dark: {
@@ -388,7 +463,6 @@ function StatCard({ title, value, icon, theme, link }) {
     },
   };
   const t = themes[theme] || themes.blue;
-
   return (
     <Link href={link} className="block group">
       <div
@@ -419,7 +493,6 @@ function ShortcutCard({ href, icon, label, theme, badge }) {
     slate: "hover:bg-gray-50 hover:border-gray-300 text-gray-600",
   };
   const hoverClass = themes[theme] || themes.blue;
-
   return (
     <Link
       href={href}
@@ -454,7 +527,6 @@ function CompactStatusCard({ icon, title, value, color }) {
     },
   };
   const c = colors[color];
-
   return (
     <div
       className={`bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex items-center gap-4 ${c.border} transition-colors h-full`}
