@@ -7,13 +7,24 @@ export default function SuppliersPage() {
   const [suppliers, setSuppliers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // State untuk Notifikasi & Loading Check Connection
+  const [isChecking, setIsChecking] = useState(null); // Menyimpan ID supplier yang sedang dicek
+  const [notification, setNotification] = useState(null);
+
   // State Modal & Form
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentId, setCurrentId] = useState(null);
 
-  // Sesuaikan initial form dengan field API (name, code, type, status)
-  const initialForm = { name: "", code: "", type: "official", status: "true" };
+  // Initial form disesuaikan dengan penambahan username dan password
+  const initialForm = {
+    name: "",
+    code: "",
+    type: "official",
+    username: "",
+    password: "",
+    status: "true",
+  };
   const [formData, setFormData] = useState(initialForm);
 
   // === FETCH DATA ===
@@ -21,7 +32,6 @@ export default function SuppliersPage() {
     try {
       setIsLoading(true);
       const response = await apiService.getSuppliers();
-      // Data ada di dalam object 'data': { data: [...] }
       setSuppliers(response.data || []);
     } catch (err) {
       console.error("Gagal ambil data:", err.message);
@@ -38,7 +48,6 @@ export default function SuppliersPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      // Konversi status dari string "true"/"false" ke Boolean sebelum kirim ke API
       const payload = {
         ...formData,
         status: formData.status === "true" || formData.status === true,
@@ -69,6 +78,32 @@ export default function SuppliersPage() {
     }
   };
 
+  // === CHECK CONNECTION ===
+  const handleCheckConnection = async (id) => {
+    setIsChecking(id);
+    setNotification(null); // Reset notifikasi
+    try {
+      // Panggil API untuk ngecek koneksi, hanya lempar supplier_id (sesuai update backend kita)
+      const res = await apiService.checkSupplierConnection({ supplier_id: id });
+
+      // Jika berhasil
+      setNotification({
+        type: "success",
+        message: res.message || "Berhasil! Supplier terkoneksi.",
+      });
+    } catch (err) {
+      // Jika gagal
+      setNotification({
+        type: "error",
+        message: `Koneksi gagal: ${err.message}`,
+      });
+    } finally {
+      setIsChecking(null);
+      // Auto-hide notification after 5 seconds
+      setTimeout(() => setNotification(null), 5000);
+    }
+  };
+
   // === HANDLER UI ===
   const handleOpenAdd = () => {
     setIsEditing(false);
@@ -79,18 +114,37 @@ export default function SuppliersPage() {
   const handleOpenEdit = (item) => {
     setIsEditing(true);
     setCurrentId(item.id);
-    // Masukkan data ke form, pastikan status dikonversi ke string untuk Select option
     setFormData({
-      name: item.name,
-      code: item.code,
-      type: item.type,
-      status: item.status ? "true" : "false", // Konversi bool ke string agar dropdown terbaca
+      name: item.name || "",
+      code: item.code || "",
+      type: item.type || "official",
+      username: item.username || "", // Isi otomatis jika ada
+      password: item.password || "", // Isi otomatis jika ada
+      status: item.status ? "true" : "false",
     });
     setIsModalOpen(true);
   };
 
   return (
-    <div className="max-w-6xl mx-auto text-gray-900">
+    <div className="max-w-6xl mx-auto text-gray-900 relative">
+      {/* --- NOTIFIKASI TOAST (Absolute Top) --- */}
+      {notification && (
+        <div
+          className={`fixed top-5 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-lg shadow-xl z-50 flex items-center gap-3 transition-all ${
+            notification.type === "success"
+              ? "bg-green-100 text-green-800 border-l-4 border-green-500"
+              : "bg-red-100 text-red-800 border-l-4 border-red-500"
+          }`}
+        >
+          {notification.type === "success" ? (
+            <span className="text-xl">✅</span>
+          ) : (
+            <span className="text-xl">⚠️</span>
+          )}
+          <p className="font-medium">{notification.message}</p>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <div>
@@ -159,7 +213,6 @@ export default function SuppliersPage() {
                       {item.type}
                     </td>
                     <td className="p-5">
-                      {/* Render Badge berdasarkan Boolean true/false */}
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-bold border ${
                           item.status
@@ -171,6 +224,19 @@ export default function SuppliersPage() {
                       </span>
                     </td>
                     <td className="p-5 text-right space-x-3">
+                      {/* Tombol Check Connection */}
+                      <button
+                        onClick={() => handleCheckConnection(item.id)}
+                        disabled={isChecking === item.id}
+                        className={`font-medium text-sm border px-3 py-1.5 rounded-md transition-all ${
+                          isChecking === item.id
+                            ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                            : "bg-teal-50 text-teal-600 border-teal-200 hover:bg-teal-600 hover:text-white"
+                        }`}
+                      >
+                        {isChecking === item.id ? "Memeriksa..." : "Check"}
+                      </button>
+
                       <button
                         onClick={() => handleOpenEdit(item)}
                         className="text-blue-600 hover:text-blue-800 font-medium text-sm"
@@ -199,38 +265,70 @@ export default function SuppliersPage() {
         title={isEditing ? "Edit Supplier" : "Tambah Supplier"}
       >
         <form onSubmit={handleSubmit} className="space-y-4 text-gray-900">
-          {/* Input NAME */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Nama Supplier
-            </label>
-            <input
-              type="text"
-              className="w-full border p-2.5 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-              required
-              value={formData.name}
-              onChange={(e) =>
-                setFormData({ ...formData, name: e.target.value })
-              }
-              placeholder="Contoh: Mitra Higgs Official"
-            />
+          {/* Input NAME & CODE (Samping-sampingan agar hemat ruang) */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Nama Supplier
+              </label>
+              <input
+                type="text"
+                className="w-full border p-2.5 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                required
+                value={formData.name}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
+                placeholder="Contoh: Mitra Higgs Official"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Kode Supplier
+              </label>
+              <input
+                type="text"
+                className="w-full border p-2.5 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                required
+                value={formData.code}
+                onChange={(e) =>
+                  setFormData({ ...formData, code: e.target.value })
+                }
+                placeholder="Contoh: MH_OFFICIAL"
+              />
+            </div>
           </div>
 
-          {/* Input CODE */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Kode Supplier
-            </label>
-            <input
-              type="text"
-              className="w-full border p-2.5 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-              required
-              value={formData.code}
-              onChange={(e) =>
-                setFormData({ ...formData, code: e.target.value })
-              }
-              placeholder="Contoh: MH_OFFICIAL"
-            />
+          {/* === [BARU] Input USERNAME & PASSWORD === */}
+          <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 border rounded-lg">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Username Akun
+              </label>
+              <input
+                type="text"
+                className="w-full border p-2.5 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                value={formData.username}
+                onChange={(e) =>
+                  setFormData({ ...formData, username: e.target.value })
+                }
+                placeholder="Masukkan ID/Username"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Password Akun
+              </label>
+              <input
+                type="password"
+                className="w-full border p-2.5 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                value={formData.password}
+                onChange={(e) =>
+                  setFormData({ ...formData, password: e.target.value })
+                }
+                placeholder="Masukkan Password"
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

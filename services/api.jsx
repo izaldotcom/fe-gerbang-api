@@ -2,7 +2,7 @@ import Cookies from "js-cookie";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
-// Wrapper fetchAPI (Sama seperti sebelumnya)
+// Wrapper fetchAPI
 const fetchAPI = async (endpoint, options = {}) => {
   const token = Cookies.get("token");
   const headers = {
@@ -68,6 +68,13 @@ export const apiService = {
     }),
   deleteSupplier: (id) => fetchAPI(`/suppliers/${id}`, { method: "DELETE" }),
 
+  // CHECK SUPPLIER CONNECTION
+  checkSupplierConnection: (payload) =>
+    fetchAPI("/suppliers/check-connection", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
   // === SUPPLIER PRODUCTS ===
   getSupplierProducts: () => fetchAPI("/supplier-products", { method: "GET" }),
   createSupplierProduct: (payload) =>
@@ -89,7 +96,6 @@ export const apiService = {
     fetchAPI("/products", { method: "POST", body: JSON.stringify(payload) }),
   updateProduct: (id, payload) =>
     fetchAPI(`/products?id=${id}`, {
-      // <-- Perbaikan di sini
       method: "PUT",
       body: JSON.stringify(payload),
     }),
@@ -116,22 +122,20 @@ export const apiService = {
   // === USER PROFILE (AUTH) ===
   getProfile: () => fetchAPI("/auth/me", { method: "GET" }),
 
-  // === SELLER PROFILE (BARU) ===
-  // Ditambahkan sesuai permintaan gambar (menggunakan header X-API-KEY)
+  // === SELLER PROFILE ===
   getSellerProfile: (apiKey) =>
     fetchAPI("/seller/profile", {
       method: "GET",
       headers: {
-        "X-API-KEY": apiKey, // Value dinamis dari parameter
+        "X-API-KEY": apiKey,
       },
     }),
 
-  // [BARU] UPDATE SELLER PROFILE
   updateSellerProfile: (payload, apiKey) =>
     fetchAPI("/seller/profile", {
       method: "PUT",
       headers: {
-        "X-API-KEY": apiKey, // Wajib ada sesuai instruksi backend
+        "X-API-KEY": apiKey,
       },
       body: JSON.stringify(payload),
     }),
@@ -146,7 +150,6 @@ export const apiService = {
       body: JSON.stringify(payload),
     }),
 
-  // === ORDER HISTORY ===
   getOrderHistory: (apiKey) =>
     fetchAPI("/seller/order/history", {
       method: "GET",
