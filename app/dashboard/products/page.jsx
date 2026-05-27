@@ -102,19 +102,11 @@ export default function ProductsPage() {
   // === CHECK ROLE (Apakah Admin?) ===
   const isAdmin = userRole === "Admin";
 
-  // === 2. FILTER LOGIC ===
+  // === 2. FILTER LOGIC (DI-FIX) ===
+  // Langsung filter berdasarkan supplier_id milik produk itu sendiri, tidak perlu lewat resep lagi
   const filteredProducts = selectedSupplierId
-    ? products.filter((product) => {
-        const recipeGroup = recipes.find((r) => r.product_id === product.id);
-        if (!recipeGroup || !recipeGroup.items) return false;
-        return recipeGroup.items.some((item) => {
-          const sp = supplierProducts.find(
-            (s) => s.id === item.supplier_product_id,
-          );
-          return sp && sp.supplier_id === selectedSupplierId;
-        });
-      })
-    : []; // Default kosong sebelum pilih supplier
+    ? products.filter((product) => product.supplier_id === selectedSupplierId)
+    : [];
 
   // === 3. SUBMIT HANDLER ===
   const handleSubmit = async (e) => {

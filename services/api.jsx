@@ -40,7 +40,6 @@ const fetchAPI = async (endpoint, options = {}) => {
     }
 
     if (!res.ok) {
-      // Menampilkan pesan error dari backend (misal: "Not Found")
       throw new Error(data.message || res.statusText || "Request gagal");
     }
 
@@ -115,7 +114,13 @@ export const apiService = {
       method: "PUT",
       body: JSON.stringify(payload),
     }),
+
+  // Hapus 1 baris bahan (Berdasarkan ID resep)
   deleteRecipe: (id) => fetchAPI(`/recipes/${id}`, { method: "DELETE" }),
+
+  // [BARU] Hapus semua resep sekaligus tanpa garis miring penutup yang merusak struktur URL
+  deleteFullRecipe: (productId) =>
+    fetchAPI(`/recipes?product_id=${productId}`, { method: "DELETE" }),
 
   // === USERS ===
   getUsers: () => fetchAPI("/users", { method: "GET" }),
@@ -159,5 +164,6 @@ export const apiService = {
       headers: {
         "X-API-KEY": apiKey,
       },
+      // Baris body: JSON.stringify(payload) dihapus karena method GET tidak butuh body
     }),
 };

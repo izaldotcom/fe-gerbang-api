@@ -83,14 +83,12 @@ export default function RecipesPage() {
   }, []);
 
   // === 2. LOGIKA FILTER ===
-  // Filter Resep: Hanya tampilkan resep dari Produk yang dimiliki oleh Supplier terpilih
   const filteredRecipes = selectedSupplierId
     ? recipes.filter((group) => {
-        // Cari data produk asli untuk cek supplier_id-nya
         const product = products.find((p) => p.id === group.product_id);
         return product && product.supplier_id === selectedSupplierId;
       })
-    : []; // Default KOSONG jika belum pilih supplier
+    : [];
 
   // === 3. UI LOGIC ===
   const toggleExpand = (productId) => {
@@ -105,7 +103,6 @@ export default function RecipesPage() {
     e.preventDefault();
     try {
       if (modalMode === "manage") {
-        // Manage All
         const validItems = manageItems
           .filter((item) => item.supplier_product_id && item.quantity > 0)
           .map((item) => ({
@@ -116,11 +113,9 @@ export default function RecipesPage() {
         await apiService.replaceRecipe(payload);
         setExpandedIds((prev) => ({ ...prev, [currentProductId]: true }));
       } else if (modalMode === "edit_qty") {
-        // Edit Single Qty
         const payload = { id: currentId, quantity: Number(formData.quantity) };
         await apiService.updateRecipeItem(payload);
       } else {
-        // Create Single
         const payload = {
           product_id: formData.product_id,
           items: [
@@ -140,6 +135,7 @@ export default function RecipesPage() {
     }
   };
 
+  // Hapus Single Item (Bahan Baku Internal)
   const handleDelete = async (id) => {
     if (confirm("Hapus bahan baku ini dari resep?")) {
       try {
@@ -147,6 +143,26 @@ export default function RecipesPage() {
         fetchData();
       } catch (err) {
         alert(`Gagal menghapus: ${err.message}`);
+      }
+    }
+  };
+
+  // === [BARU] Hapus Seluruh Resep Berdasarkan Product ID ===
+  const handleDeleteFullRecipe = async (productId, productName) => {
+    if (
+      confirm(
+        `Apakah Anda yakin ingin menghapus SELURUH resep untuk produk "${productName}"?`,
+      )
+    ) {
+      try {
+        // Sesuaikan dengan service API Anda. Pastikan mengirim query param ?product_id=...
+        // Jika apiService.deleteRecipe hanya menerima ID, Anda bisa membuat fungsi baru di apiService
+        // atau mempassing objek/kondisi tertentu, contoh:
+        await apiService.deleteFullRecipe(productId);
+
+        fetchData();
+      } catch (err) {
+        alert(`Gagal menghapus seluruh resep: ${err.message}`);
       }
     }
   };
@@ -178,7 +194,6 @@ export default function RecipesPage() {
     setIsModalOpen(true);
   };
 
-  // Helper Manage Modal
   const handleManageChange = (index, field, value) => {
     const newItems = [...manageItems];
     newItems[index][field] = value;
@@ -206,7 +221,7 @@ export default function RecipesPage() {
         </p>
       </div>
 
-      {/* === GRID FILTER BY SUPPLIER === */}
+      {/* GRID FILTER BY SUPPLIER */}
       <div className="mb-10">
         <div className="flex items-center gap-3 mb-4 h-8">
           <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider">
@@ -301,7 +316,6 @@ export default function RecipesPage() {
           )}
         </h2>
 
-        {/* Tombol Add (Hanya Muncul Jika Supplier Dipilih) */}
         {selectedSupplierId && (
           <button
             onClick={handleOpenAddGlobal}
@@ -312,7 +326,7 @@ export default function RecipesPage() {
         )}
       </div>
 
-      {/* === TABLE LIST === */}
+      {/* TABLE LIST */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden min-h-[300px]">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
@@ -332,7 +346,6 @@ export default function RecipesPage() {
                   </td>
                 </tr>
               ) : !selectedSupplierId ? (
-                /* STATE KOSONG JIKA BELUM PILIH SUPPLIER */
                 <tr>
                   <td colSpan="2" className="p-16 text-center text-gray-400">
                     <div className="flex flex-col items-center gap-4">
@@ -347,7 +360,6 @@ export default function RecipesPage() {
                   </td>
                 </tr>
               ) : filteredRecipes.length === 0 ? (
-                /* STATE JIKA SUDAH PILIH TAPI DATA KOSONG */
                 <tr>
                   <td colSpan="2" className="p-16 text-center text-gray-400">
                     Belum ada resep untuk produk supplier ini.
@@ -393,12 +405,25 @@ export default function RecipesPage() {
                             </div>
                           </div>
                         </td>
-                        <td className="p-5 text-right">
+                        {/* === MODIFIKASI: Penambahan tombol Hapus berdampingan === */}
+                        <td className="p-5 text-right space-x-2">
                           <button
                             onClick={(e) => handleOpenManage(e, group)}
                             className="bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-50 px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-all"
                           >
                             Update Bahan Baku
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation(); // Stop click accordion agar tidak collapse/expand
+                              handleDeleteFullRecipe(
+                                group.product_id,
+                                group.product_name,
+                              );
+                            }}
+                            className="bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-all"
+                          >
+                            Hapus Resep
                           </button>
                         </td>
                       </tr>
@@ -478,12 +503,12 @@ export default function RecipesPage() {
           modalMode === "manage"
             ? "Kelola Bahan Baku"
             : modalMode === "edit_qty"
-            ? "Update Quantity"
-            : "Resep Baru"
+              ? "Update Quantity"
+              : "Resep Baru"
         }
       >
         <form onSubmit={handleSubmit} className="space-y-5 text-gray-900">
-          {/* MODE MANAGE (Update Full Resep) */}
+          {/* MODE MANAGE */}
           {modalMode === "manage" && (
             <div className="space-y-4">
               <div className="bg-blue-50 p-3 rounded text-sm text-blue-800 mb-2">
@@ -506,7 +531,7 @@ export default function RecipesPage() {
                           handleManageChange(
                             index,
                             "supplier_product_id",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                         required
@@ -557,7 +582,7 @@ export default function RecipesPage() {
             </div>
           )}
 
-          {/* MODE CREATE (Single Item) */}
+          {/* MODE CREATE */}
           {modalMode === "create" && (
             <>
               <div>
@@ -573,7 +598,6 @@ export default function RecipesPage() {
                   }
                 >
                   <option value="">-- Pilih Produk --</option>
-                  {/* Filter Produk di Dropdown agar hanya menampilkan produk milik Supplier yang dipilih */}
                   {products
                     .filter((p) => p.supplier_id === selectedSupplierId)
                     .map((p) => (
@@ -582,7 +606,6 @@ export default function RecipesPage() {
                       </option>
                     ))}
                 </select>
-                {/* Info Text */}
                 <p className="text-xs text-indigo-600 mt-1">
                   Menampilkan produk milik:{" "}
                   <b>
