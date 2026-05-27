@@ -101,6 +101,9 @@ export const apiService = {
     }),
   deleteProduct: (id) => fetchAPI(`/products?id=${id}`, { method: "DELETE" }),
 
+  // === PAYMENT TYPE ===
+  getPaymentTypes: () => fetchAPI("/payment-types", { method: "GET" }),
+
   // === RECIPES ===
   getRecipes: () => fetchAPI("/recipes", { method: "GET" }),
   createRecipe: (payload) =>

@@ -1,34 +1,35 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation"; // 1. Import useRouter
+import { useRouter } from "next/navigation";
 import { apiService } from "@/services/api";
 import Modal from "@/app/components/Modal";
 import { useUser } from "@/app/context/UserContext";
 
 export default function TransactionPage() {
-  const router = useRouter(); // 2. Init Router
+  const router = useRouter();
   const { user } = useUser();
   const [products, setProducts] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
+
+  // === 1. TAMBAH STATE PAYMENT TYPES ===
+  const [paymentTypes, setPaymentTypes] = useState([]);
+
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // State Form
+  // === 2. TAMBAH payment_type_id PADA FORM DATA ===
   const [formData, setFormData] = useState({
     supplier_id: "",
     product_id: "",
     destination: "",
+    payment_type_id: "",
     ref_id: "",
   });
 
-  // State Modal Sukses
   const [successData, setSuccessData] = useState(null);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
-
-  // === 3. STATE MODAL ERROR WEBHOOK ===
   const [isWebhookModalOpen, setIsWebhookModalOpen] = useState(false);
 
-  // === HELPERS UI ===
   const getInitials = (name) => {
     if (!name) return "?";
     const parts = name.split(" ");
@@ -57,7 +58,6 @@ export default function TransactionPage() {
     }).format(num);
   };
 
-  // === INITIAL FETCH ===
   useEffect(() => {
     generateRefId();
     fetchData();
@@ -71,12 +71,15 @@ export default function TransactionPage() {
   const fetchData = async () => {
     try {
       setIsLoading(true);
-      const [suppliersRes, productsRes] = await Promise.all([
+      // === 3. TANGKAP HASIL getPaymentTypes() ===
+      const [suppliersRes, productsRes, paymentTypesRes] = await Promise.all([
         apiService.getSuppliers(),
         apiService.getProducts(),
+        apiService.getPaymentTypes(),
       ]);
       setSuppliers(suppliersRes.data || []);
       setProducts(productsRes.data || []);
+      setPaymentTypes(paymentTypesRes.data || []); // Simpan ke state
     } catch (err) {
       console.error("Gagal memuat data:", err.message);
     } finally {
@@ -88,34 +91,42 @@ export default function TransactionPage() {
     ? products.filter((p) => p.supplier_id === formData.supplier_id)
     : [];
 
-  // === 4. MODIFIED HANDLER SELECT SUPPLIER ===
   const handleSelectSupplier = (id) => {
-    // Validasi: Cek apakah user sudah login dan punya webhook_url
-    // Jika user belum load, kita anggap aman dulu atau tunggu (tergantung UX),
-    // tapi biasanya user context sudah ready di sini.
-
     if (user && !user.webhook_url) {
-      setIsWebhookModalOpen(true); // Tampilkan Modal Error
-      return; // Stop eksekusi, jangan pilih supplier
+      setIsWebhookModalOpen(true);
+      return;
     }
 
-    // Jika Webhook URL ada, lanjutkan logika normal
     setFormData((prev) => {
       if (prev.supplier_id === id) {
-        return { ...prev, supplier_id: "", product_id: "" };
+        // Reset field terkait jika membatalkan pilihan supplier
+        return {
+          ...prev,
+          supplier_id: "",
+          product_id: "",
+          payment_type_id: "",
+        };
       }
-      return { ...prev, supplier_id: id, product_id: "" };
+      return { ...prev, supplier_id: id, product_id: "", payment_type_id: "" };
     });
   };
 
   const handleResetSupplier = () => {
-    setFormData((prev) => ({ ...prev, supplier_id: "", product_id: "" }));
+    setFormData((prev) => ({
+      ...prev,
+      supplier_id: "",
+      product_id: "",
+      payment_type_id: "",
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.supplier_id)
       return alert("Mohon pilih supplier terlebih dahulu.");
+    // === 4. VALIDASI PAYMENT TYPE ===
+    if (!formData.payment_type_id)
+      return alert("Mohon pilih metode pembayaran.");
 
     if (!user.api_key) {
       return alert(
@@ -134,6 +145,7 @@ export default function TransactionPage() {
         ...prev,
         product_id: "",
         destination: "",
+        payment_type_id: "", // Reset field setelah sukses
       }));
     } catch (err) {
       alert(`Transaksi Gagal: ${err.message}`);
@@ -148,7 +160,6 @@ export default function TransactionPage() {
     generateRefId();
   };
 
-  // Fungsi Redirect ke Account Settings
   const goToAccountSettings = () => {
     setIsWebhookModalOpen(false);
     router.push("/dashboard/account");
@@ -166,7 +177,7 @@ export default function TransactionPage() {
       </div>
 
       <form onSubmit={handleSubmit}>
-        {/* === SECTION 1: PILIH SUPPLIER === */}
+        {/* SECTION 1: PILIH SUPPLIER */}
         <div className="mb-10">
           <div className="flex items-center gap-4 mb-4 h-8">
             <div className="flex items-center gap-2">
@@ -205,31 +216,21 @@ export default function TransactionPage() {
                     key={s.id}
                     onClick={() => handleSelectSupplier(s.id)}
                     className={`relative flex items-center gap-4 p-4 rounded-xl border-2 transition-all cursor-pointer group select-none
-                      ${
-                        isActive
-                          ? "border-blue-600 bg-blue-50 shadow-md ring-1 ring-blue-600 scale-[1.02]"
-                          : "border-gray-100 bg-white hover:border-blue-300 hover:shadow-lg hover:-translate-y-1"
-                      }`}
+                      ${isActive ? "border-blue-600 bg-blue-50 shadow-md ring-1 ring-blue-600 scale-[1.02]" : "border-gray-100 bg-white hover:border-blue-300 hover:shadow-lg hover:-translate-y-1"}`}
                   >
                     <div
-                      className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold shadow-sm transition-transform ${
-                        isActive ? "scale-110" : ""
-                      } ${getAvatarColor(s.id)}`}
+                      className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold shadow-sm transition-transform ${isActive ? "scale-110" : ""} ${getAvatarColor(s.id)}`}
                     >
                       {getInitials(s.name)}
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3
-                        className={`font-bold truncate transition-colors ${
-                          isActive ? "text-blue-900" : "text-gray-700"
-                        }`}
+                        className={`font-bold truncate transition-colors ${isActive ? "text-blue-900" : "text-gray-700"}`}
                       >
                         {s.name}
                       </h3>
                       <p
-                        className={`text-xs font-mono truncate transition-colors ${
-                          isActive ? "text-blue-600" : "text-gray-400"
-                        }`}
+                        className={`text-xs font-mono truncate transition-colors ${isActive ? "text-blue-600" : "text-gray-400"}`}
                       >
                         {s.code}
                       </p>
@@ -257,13 +258,9 @@ export default function TransactionPage() {
           )}
         </div>
 
-        {/* === SECTION 2: DETAIL ORDER === */}
+        {/* SECTION 2: DETAIL ORDER */}
         <div
-          className={`transition-all duration-500 ease-in-out ${
-            formData.supplier_id
-              ? "opacity-100 translate-y-0"
-              : "opacity-40 translate-y-4 grayscale pointer-events-none filter blur-[1px]"
-          }`}
+          className={`transition-all duration-500 ease-in-out ${formData.supplier_id ? "opacity-100 translate-y-0" : "opacity-40 translate-y-4 grayscale pointer-events-none filter blur-[1px]"}`}
         >
           <div className="flex items-center gap-2 mb-4">
             <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-xs font-bold">
@@ -278,6 +275,7 @@ export default function TransactionPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {/* KOLOM KIRI */}
               <div className="space-y-6">
+                {/* Field Produk */}
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">
                     Pilih Produk
@@ -326,6 +324,7 @@ export default function TransactionPage() {
                   )}
                 </div>
 
+                {/* Field ID Tujuan */}
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">
                     ID Tujuan / Destination
@@ -355,6 +354,47 @@ export default function TransactionPage() {
                     </svg>
                     Masukkan ID Game atau Nomor HP Tujuan.
                   </p>
+                </div>
+
+                {/* === 5. FIELD METODE PEMBAYARAN DI BAWAH ID TUJUAN === */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                    Metode Pembayaran
+                  </label>
+                  <div className="relative">
+                    <select
+                      className="w-full pl-4 pr-10 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all appearance-none cursor-pointer"
+                      required
+                      value={formData.payment_type_id}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          payment_type_id: e.target.value,
+                        })
+                      }
+                    >
+                      <option value="">-- Pilih Metode Pembayaran --</option>
+                      {paymentTypes.map((pt) => (
+                        <option key={pt.id} value={pt.id}>
+                          {pt.name}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-gray-500">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        className="w-5 h-5"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -387,12 +427,14 @@ export default function TransactionPage() {
                   disabled={
                     isSubmitting ||
                     !formData.supplier_id ||
-                    !formData.product_id
+                    !formData.product_id ||
+                    !formData.payment_type_id
                   }
                   className={`w-full py-4 rounded-xl text-white font-bold text-lg shadow-xl transition-all transform flex items-center justify-center gap-2 ${
                     isSubmitting ||
                     !formData.supplier_id ||
-                    !formData.product_id
+                    !formData.product_id ||
+                    !formData.payment_type_id
                       ? "bg-gray-300 cursor-not-allowed shadow-none"
                       : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 hover:-translate-y-1 shadow-blue-500/30"
                   }`}
@@ -453,7 +495,7 @@ export default function TransactionPage() {
         </div>
       </Modal>
 
-      {/* === 5. MODAL ERROR WEBHOOK === */}
+      {/* MODAL ERROR WEBHOOK */}
       <Modal
         isOpen={isWebhookModalOpen}
         onClose={() => setIsWebhookModalOpen(false)}
