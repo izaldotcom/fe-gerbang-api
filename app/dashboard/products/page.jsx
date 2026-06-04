@@ -67,13 +67,23 @@ export default function ProductsPage() {
     return colors[index];
   };
 
-  // === 1. FETCH DATA (Termasuk Profile User) ===
-  const fetchData = async () => {
+  // === 1. FETCH DATA (Dinamis Berdasarkan Role) ===
+  const fetchData = async (currentUser) => {
     try {
       setIsLoading(true);
+
+      // Cek apakah user adalah Customer
+      const isCustomer = currentUser?.role_name === "Customer";
+
+      // Pilih endpoint produk berdasarkan role
+      // Pastikan fungsi getSellerProducts sudah ada di apiService Anda
+      const productsPromise = isCustomer
+        ? apiService.getSellerProducts(currentUser?.api_key || "")
+        : apiService.getProducts();
+
       const [productsRes, suppliersRes, recipesRes, supplierProdRes] =
         await Promise.all([
-          apiService.getProducts(),
+          productsPromise,
           apiService.getSuppliers(),
           apiService.getRecipes(),
           apiService.getSupplierProducts(),
@@ -84,10 +94,8 @@ export default function ProductsPage() {
       setRecipes(recipesRes.data || []);
       setSupplierProducts(supplierProdRes.data || []);
 
-      // Set Role User
-      if (user) {
-        setUserRole(user.role_name);
-      }
+      // Set Role User ke State
+      setUserRole(currentUser?.role_name || null);
     } catch (err) {
       console.error("Gagal ambil data:", err.message);
     } finally {
@@ -95,15 +103,18 @@ export default function ProductsPage() {
     }
   };
 
+  // Gunakan useEffect yang bergantung pada 'user' agar tidak terjadi bug saat refresh
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (user) {
+      fetchData(user);
+    }
+  }, [user]);
 
   // === CHECK ROLE (Apakah Admin?) ===
   const isAdmin = userRole === "Admin";
 
-  // === 2. FILTER LOGIC (DI-FIX) ===
-  // Langsung filter berdasarkan supplier_id milik produk itu sendiri, tidak perlu lewat resep lagi
+  // === 2. FILTER LOGIC ===
+  // Langsung filter berdasarkan supplier_id milik produk itu sendiri
   const filteredProducts = selectedSupplierId
     ? products.filter((product) => product.supplier_id === selectedSupplierId)
     : [];
@@ -131,7 +142,7 @@ export default function ProductsPage() {
       }
 
       setIsModalOpen(false);
-      fetchData();
+      fetchData(user); // Panggil ulang dengan data user terbaru
     } catch (err) {
       alert(`Gagal menyimpan: ${err.message}`);
     }
@@ -142,7 +153,7 @@ export default function ProductsPage() {
     if (confirm("Yakin ingin menghapus produk ini?")) {
       try {
         await apiService.deleteProduct(id);
-        fetchData();
+        fetchData(user);
       } catch (err) {
         alert(`Gagal menghapus: ${err.message}`);
       }
@@ -169,6 +180,15 @@ export default function ProductsPage() {
     setIsModalOpen(true);
   };
 
+  // Mencegah rendering kosong sebelum data user siap
+  if (!user && isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-[50vh]">
+        <p className="text-gray-500">Memuat profil...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto text-gray-900 pb-20">
       {/* HEADER PAGE */}
@@ -176,8 +196,8 @@ export default function ProductsPage() {
         <h1 className="text-3xl font-bold text-gray-800">Products</h1>
         <p className="text-gray-500 mt-1">
           {isAdmin
-            ? "Kelola data produk utama (Koin Emas)."
-            : "Lihat daftar produk yang tersedia."}
+            ? "Kelola data produk utama."
+            : "Lihat daftar produk yang tersedia untuk dibeli."}
         </p>
       </div>
 

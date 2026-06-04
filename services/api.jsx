@@ -166,4 +166,12 @@ export const apiService = {
       },
       // Baris body: JSON.stringify(payload) dihapus karena method GET tidak butuh body
     }),
+
+  getSellerProducts: (apiKey) =>
+    fetchAPI("/seller/products", {
+      method: "GET",
+      headers: {
+        "X-API-KEY": apiKey,
+      },
+    }),
 };

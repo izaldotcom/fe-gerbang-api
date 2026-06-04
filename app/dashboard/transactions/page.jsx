@@ -11,13 +11,11 @@ export default function TransactionPage() {
   const [products, setProducts] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
 
-  // === 1. TAMBAH STATE PAYMENT TYPES ===
   const [paymentTypes, setPaymentTypes] = useState([]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // === 2. TAMBAH payment_type_id PADA FORM DATA ===
   const [formData, setFormData] = useState({
     supplier_id: "",
     product_id: "",
@@ -71,7 +69,6 @@ export default function TransactionPage() {
   const fetchData = async () => {
     try {
       setIsLoading(true);
-      // === 3. TANGKAP HASIL getPaymentTypes() ===
       const [suppliersRes, productsRes, paymentTypesRes] = await Promise.all([
         apiService.getSuppliers(),
         apiService.getProducts(),
@@ -79,7 +76,7 @@ export default function TransactionPage() {
       ]);
       setSuppliers(suppliersRes.data || []);
       setProducts(productsRes.data || []);
-      setPaymentTypes(paymentTypesRes.data || []); // Simpan ke state
+      setPaymentTypes(paymentTypesRes.data || []);
     } catch (err) {
       console.error("Gagal memuat data:", err.message);
     } finally {
@@ -91,6 +88,10 @@ export default function TransactionPage() {
     ? products.filter((p) => p.supplier_id === formData.supplier_id)
     : [];
 
+  // === [BARU] DETEKSI SUPPLIER DIGIFLAZZ ===
+  const selectedSupplier = suppliers.find((s) => s.id === formData.supplier_id);
+  const isDigiflazz = selectedSupplier?.code === "DIGIFLAZZ_OFFICIAL";
+
   const handleSelectSupplier = (id) => {
     if (user && !user.webhook_url) {
       setIsWebhookModalOpen(true);
@@ -99,7 +100,6 @@ export default function TransactionPage() {
 
     setFormData((prev) => {
       if (prev.supplier_id === id) {
-        // Reset field terkait jika membatalkan pilihan supplier
         return {
           ...prev,
           supplier_id: "",
@@ -124,8 +124,9 @@ export default function TransactionPage() {
     e.preventDefault();
     if (!formData.supplier_id)
       return alert("Mohon pilih supplier terlebih dahulu.");
-    // === 4. VALIDASI PAYMENT TYPE ===
-    if (!formData.payment_type_id)
+
+    // === [PERBAIKAN] HANYA WAJIBKAN PAYMENT TYPE JIKA BUKAN DIGIFLAZZ ===
+    if (!isDigiflazz && !formData.payment_type_id)
       return alert("Mohon pilih metode pembayaran.");
 
     if (!user.api_key) {
@@ -136,7 +137,13 @@ export default function TransactionPage() {
 
     setIsSubmitting(true);
     try {
-      const response = await apiService.createOrder(formData, user.api_key);
+      // Pastikan payment_type_id dikirim kosong jika menggunakan Digiflazz
+      const payload = {
+        ...formData,
+        payment_type_id: isDigiflazz ? "" : formData.payment_type_id,
+      };
+
+      const response = await apiService.createOrder(payload, user.api_key);
 
       setSuccessData(response);
       setIsSuccessModalOpen(true);
@@ -145,7 +152,7 @@ export default function TransactionPage() {
         ...prev,
         product_id: "",
         destination: "",
-        payment_type_id: "", // Reset field setelah sukses
+        payment_type_id: "",
       }));
     } catch (err) {
       alert(`Transaksi Gagal: ${err.message}`);
@@ -164,6 +171,12 @@ export default function TransactionPage() {
     setIsWebhookModalOpen(false);
     router.push("/dashboard/account");
   };
+
+  // Validasi form agar tombol bisa diklik
+  const isFormValid =
+    formData.supplier_id &&
+    formData.product_id &&
+    (isDigiflazz || formData.payment_type_id);
 
   return (
     <div className="max-w-6xl mx-auto text-gray-900 pb-20">
@@ -356,46 +369,48 @@ export default function TransactionPage() {
                   </p>
                 </div>
 
-                {/* === 5. FIELD METODE PEMBAYARAN DI BAWAH ID TUJUAN === */}
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">
-                    Metode Pembayaran
-                  </label>
-                  <div className="relative">
-                    <select
-                      className="w-full pl-4 pr-10 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all appearance-none cursor-pointer"
-                      required
-                      value={formData.payment_type_id}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          payment_type_id: e.target.value,
-                        })
-                      }
-                    >
-                      <option value="">-- Pilih Metode Pembayaran --</option>
-                      {paymentTypes.map((pt) => (
-                        <option key={pt.id} value={pt.id}>
-                          {pt.name}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-gray-500">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                        className="w-5 h-5"
+                {/* === [PERBAIKAN] SEMBUNYIKAN METODE PEMBAYARAN JIKA DIGIFLAZZ === */}
+                {!isDigiflazz && (
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                      Metode Pembayaran
+                    </label>
+                    <div className="relative">
+                      <select
+                        className="w-full pl-4 pr-10 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all appearance-none cursor-pointer"
+                        required={!isDigiflazz} // Hanya wajib jika bukan digiflazz
+                        value={formData.payment_type_id}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            payment_type_id: e.target.value,
+                          })
+                        }
                       >
-                        <path
-                          fillRule="evenodd"
-                          d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
+                        <option value="">-- Pilih Metode Pembayaran --</option>
+                        {paymentTypes.map((pt) => (
+                          <option key={pt.id} value={pt.id}>
+                            {pt.name}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-gray-500">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                          className="w-5 h-5"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* KOLOM KANAN */}
@@ -424,17 +439,9 @@ export default function TransactionPage() {
 
                 <button
                   type="submit"
-                  disabled={
-                    isSubmitting ||
-                    !formData.supplier_id ||
-                    !formData.product_id ||
-                    !formData.payment_type_id
-                  }
+                  disabled={isSubmitting || !isFormValid}
                   className={`w-full py-4 rounded-xl text-white font-bold text-lg shadow-xl transition-all transform flex items-center justify-center gap-2 ${
-                    isSubmitting ||
-                    !formData.supplier_id ||
-                    !formData.product_id ||
-                    !formData.payment_type_id
+                    isSubmitting || !isFormValid
                       ? "bg-gray-300 cursor-not-allowed shadow-none"
                       : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 hover:-translate-y-1 shadow-blue-500/30"
                   }`}
@@ -451,38 +458,41 @@ export default function TransactionPage() {
       <Modal
         isOpen={isSuccessModalOpen}
         onClose={closeSuccessModal}
-        title="🎉 Transaksi Berhasil!"
+        title="🎉 Transaksi Berhasil Diterima!"
       >
         <div className="text-center space-y-4">
-          <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto text-3xl shadow-sm">
-            ✓
+          <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto text-3xl shadow-sm">
+            ⏱
           </div>
           <h3 className="text-xl font-bold text-gray-800">
-            Pesanan Telah Diproses
+            Pesanan Masuk Antrean
           </h3>
+          <p className="text-sm text-gray-500">
+            Pesanan Anda sedang diproses oleh sistem.
+          </p>
           <div className="bg-gray-50 p-4 rounded-lg text-left space-y-3 border border-gray-100 text-sm">
             <div className="flex justify-between border-b border-gray-200 pb-2">
-              <span className="text-gray-500">TRX ID</span>
+              <span className="text-gray-500">Order ID</span>
               <span className="font-mono font-bold text-gray-800">
-                {successData?.trx_id}
+                {successData?.order_id?.substring(0, 8)}...
               </span>
             </div>
             <div className="flex justify-between border-b border-gray-200 pb-2">
-              <span className="text-gray-500">Produk</span>
+              <span className="text-gray-500">Nickname</span>
               <span className="font-semibold text-gray-800 text-right">
-                {successData?.product}
+                {successData?.player_name}
               </span>
             </div>
             <div className="flex justify-between border-b border-gray-200 pb-2">
-              <span className="text-gray-500">Status</span>
-              <span className="font-bold text-green-600 uppercase bg-green-50 px-2 py-0.5 rounded border border-green-100">
+              <span className="text-gray-500">Status Awal</span>
+              <span className="font-bold text-blue-600 uppercase bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
                 {successData?.status}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-500">Qty Loop</span>
+              <span className="text-gray-500">Estimasi</span>
               <span className="font-semibold text-gray-800">
-                {successData?.quantity_loop}
+                {successData?.estimated_time}
               </span>
             </div>
           </div>
