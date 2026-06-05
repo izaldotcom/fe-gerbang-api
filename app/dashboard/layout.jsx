@@ -66,6 +66,7 @@ export default function DashboardLayout({ children }) {
       title: "Manajemen Data",
       items: [
         { name: "Users", href: "/dashboard/users", icon: "👥" },
+        { name: "Top-Ups", href: "/dashboard/topups", icon: "💰" },
         { name: "Suppliers", href: "/dashboard/suppliers", icon: "🚚" },
         {
           name: "Supplier Products",

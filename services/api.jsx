@@ -115,12 +115,22 @@ export const apiService = {
       body: JSON.stringify(payload),
     }),
 
-  // Hapus 1 baris bahan (Berdasarkan ID resep)
   deleteRecipe: (id) => fetchAPI(`/recipes/${id}`, { method: "DELETE" }),
 
-  // [BARU] Hapus semua resep sekaligus tanpa garis miring penutup yang merusak struktur URL
   deleteFullRecipe: (productId) =>
     fetchAPI(`/recipes?product_id=${productId}`, { method: "DELETE" }),
+
+  // === TOP UP & WALLET (ADMIN) ===
+  approveTopUp: (payload) =>
+    fetchAPI("/admin/topup/approve", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  getAllTopUps: () =>
+    fetchAPI("/admin/topups", {
+      method: "GET",
+    }),
 
   // === USERS ===
   getUsers: () => fetchAPI("/users", { method: "GET" }),
@@ -164,7 +174,6 @@ export const apiService = {
       headers: {
         "X-API-KEY": apiKey,
       },
-      // Baris body: JSON.stringify(payload) dihapus karena method GET tidak butuh body
     }),
 
   getSellerProducts: (apiKey) =>
@@ -173,5 +182,15 @@ export const apiService = {
       headers: {
         "X-API-KEY": apiKey,
       },
+    }),
+
+  // Endpoint untuk Admin menyetujui/menolak pengajuan Top-Up
+  requestTopUp: (payload, apiKey) =>
+    fetchAPI("/seller/topup/request", {
+      method: "POST",
+      headers: {
+        "X-API-KEY": apiKey,
+      },
+      body: JSON.stringify(payload),
     }),
 };

@@ -12,15 +12,12 @@ export const UserProvider = ({ children }) => {
   useEffect(() => {
     const restoreSession = async () => {
       const token = Cookies.get("token");
-      // Ambil API Key yang sudah kita simpan saat login
       const storedApiKey = Cookies.get("user_api_key");
 
       if (token) {
         try {
           console.log("Restoring session...");
 
-          // Gunakan API Key dari cookies (jika ada) untuk request profile
-          // Jika storedApiKey kosong, kita kirim string kosong ""
           const response = await apiService.getSellerProfile(
             storedApiKey || "",
           );
@@ -31,7 +28,6 @@ export const UserProvider = ({ children }) => {
           }
         } catch (err) {
           console.error("Gagal mengembalikan sesi:", err);
-          // Jika token invalid (401), bersihkan cookies
           // Cookies.remove("token");
           // Cookies.remove("user_api_key");
         }
